@@ -3,27 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.S. Syntax | Home</title>
-    <style>
-        body { font-family: sans-serif; background: #0a192f; color: white; text-align: center; padding: 50px; }
-        .logo { font-size: 3rem; font-weight: bold; color: #64ffda; margin-bottom: 10px; }
-        .tagline { font-size: 1.2rem; color: #8892b0; margin-bottom: 30px; }
-        .btn { display: inline-block; padding: 15px 30px; margin: 10px; border: 2px solid #64ffda; color: #64ffda; text-decoration: none; border-radius: 5px; transition: 0.3s; }
-        .btn:hover { background: #64ffda; color: #0a192f; }
-        .legal-box { margin-top: 50px; border-top: 1px solid #233554; padding-top: 20px; }
-    </style>
+    <title>S.S. Syntax | Dashboard</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="logo">S.S. Syntax</div>
-    <div class="tagline">The Premier Vessel for Your Source Sauce</div>
-    
-    <a href="#" class="btn">Add to Discord</a>
-    
-    <div class="legal-box">
-        <h3>Legal Documentation</h3>
-        <p>Review our official policies below:</p>
-        <a href="terms.html" class="btn">View Terms of Service</a>
-        <a href="privacy.html" class="btn">View Privacy Policy</a>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo">S.S. Syntax</div>
+            <div class="tagline">The Premier Vessel for Your Source Sauce</div>
+            <div class="user-info" id="userInfo">
+                <button class="btn" onclick="login()">Login with Discord</button>
+            </div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <main>
+            <!-- Server Selection -->
+            <section class="server-section" id="serverSection" style="display: none;">
+                <h2>Select Server</h2>
+                <select id="serverSelect" class="server-select">
+                    <option value="">Choose a server...</option>
+                </select>
+            </section>
+
+            <!-- Command Builder -->
+            <section class="command-builder" id="commandBuilder" style="display: none;">
+                <h2>Command Builder</h2>
+                
+                <!-- Create New Command -->
+                <div class="create-command">
+                    <h3>Create New Command</h3>
+                    <div class="form-group">
+                        <label>Command Name:</label>
+                        <input type="text" id="commandName" placeholder="e.g., welcome">
+                    </div>
+                    
+                    <!-- Trigger Type -->
+                    <div class="form-group">
+                        <label>Trigger Type:</label>
+                        <select id="triggerType">
+                            <option value="prefix">Prefix Command (-command)</option>
+                            <option value="slash">Slash Command (/command)</option>
+                            <option value="message">Message Contains</option>
+                            <option value="reaction">Reaction Added</option>
+                            <option value="member">Member Joins</option>
+                        </select>
+                    </div>
+
+                    <!-- Language Selection -->
+                    <div class="form-group">
+                        <label>Execution Language:</label>
+                        <select id="commandLanguage">
+                            <option value="js">JavaScript</option>
+                            <option value="py">Python</option>
+                            <option value="ts">TypeScript</option>
+                            <option value="go">Go</option>
+                        </select>
+                    </div>
+
+                    <!-- Code Editor -->
+                    <div class="form-group">
+                        <label>Command Code:</label>
+                        <textarea id="commandCode" placeholder="Write your code here..."></textarea>
+                    </div>
+
+                    <button class="btn-primary" onclick="createCommand()">Create Command</button>
+                </div>
+
+                <!-- Existing Commands -->
+                <div class="existing-commands">
+                    <h3>Your Commands</h3>
+                    <div id="commandList" class="command-list">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick Actions -->
+            <section class="quick-actions" id="quickActions" style="display: none;">
+                <h2>Quick Actions</h2>
+                <div class="action-grid">
+                    <button class="action-btn" onclick="deployBot()">🚀 Deploy Bot</button>
+                    <button class="action-btn" onclick="viewLogs()">📊 View Logs</button>
+                    <button class="action-btn" onclick="exportCommands()">💾 Export Commands</button>
+                    <button class="action-btn" onclick="importCommands()">📥 Import Commands</button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="legal-box">
+            <h3>Legal Documentation</h3>
+            <a href="terms.html" class="btn">View Terms of Service</a>
+            <a href="privacy.html" class="btn">View Privacy Policy</a>
+        </footer>
     </div>
+
+    <!-- Add Bot Button -->
+    <div class="floating-btn">
+        <a href="https://discord.com/oauth2/authorize?client_id=1466792124686008341&permissions=8&scope=bot%20applications.commands" 
+           class="btn" target="_blank">Add to Discord</a>
+    </div>
+
+    <script src="dashboard.js"></script>
 </body>
-</html>
+    </html>
+    
