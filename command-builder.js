@@ -1,45 +1,45 @@
-let currentSelectedGuild = null;
+const templates = {
+    js: `// JavaScript Template\nconst { user, content } = context;\nreturn \`Hello \${user}, you said: \${content}\`;`,
+    
+    py: `# Python Template\n# Use 'context' dictionary for data\nprint(f"Hello {context['user']}, welcome to Python execution!")`,
+    
+    go: `// Go Template (Main body only)\nfmt.Printf("Hello from Go!")`
+};
+
+// Function to update the editor when language changes
+document.getElementById('commandLanguage').addEventListener('change', (e) => {
+    const lang = e.target.value;
+    const editor = document.getElementById('commandCode');
+    
+    // Only update if the editor is empty or has a default template
+    if (!editor.value || Object.values(templates).includes(editor.value)) {
+        editor.value = templates[lang] || "";
+    }
+    
+    // Update the label
+    const labels = { js: 'JavaScript', py: 'Python', go: 'Go (Golang)' };
+    document.getElementById('languageDisplay').innerText = labels[lang];
+});
 
 async function validateAndCreateCommand() {
-    if (!currentSelectedGuild) return alert("Please select a server first!");
+    const guildId = currentSelectedGuild; // From server-viewer.js
+    if (!guildId) return alert("Select a server first!");
 
     const command = {
-        id: "cmd_" + Math.random().toString(36).substr(2, 9),
+        id: "cmd_" + Date.now(),
         name: document.getElementById('commandName').value,
         type: document.getElementById('commandType').value,
-        trigger: document.getElementById('commandTrigger').value,
-        prefix: document.getElementById('commandPrefix').value,
+        trigger: document.getElementById('commandTrigger').value || "",
+        prefix: document.getElementById('commandPrefix').value || "!",
         language: document.getElementById('commandLanguage').value,
         code: document.getElementById('commandCode').value,
-        createdAt: new Date().toISOString()
     };
 
-    if (!command.name || !command.code) return alert("Command Name and Code are required!");
+    const res = await fetch('/api/save-command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId, command })
+    });
 
-    try {
-        const response = await fetch('/api/save-command', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ guildId: currentSelectedGuild, command })
-        });
-
-        if (response.ok) {
-            alert("Command successfully deployed to server!");
-            resetForm();
-        }
-    } catch (err) {
-        console.error(err);
-        alert("Failed to save command.");
-    }
-}
-
-function updateTriggerOptions() {
-    const type = document.getElementById('commandType').value;
-    document.getElementById('prefixGroup').style.display = (type === 'prefix') ? 'block' : 'none';
-    document.getElementById('triggerGroup').style.display = (type === 'message' || type === 'reaction') ? 'block' : 'none';
-}
-
-function resetForm() {
-    document.getElementById('commandName').value = '';
-    document.getElementById('commandCode').value = '';
+    if (res.ok) alert("Command Saved & Deployed!");
 }
