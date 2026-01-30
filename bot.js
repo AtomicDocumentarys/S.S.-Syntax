@@ -1,37 +1,27 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits } = require('discord.js');
-const { checkRateLimit } = require('./safety');
-const { handleMessage } = require('./commands');
-const { loadGlobalState, disableGlobally, isEnabled } = require('./killswitch');
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+    // 1. Fetch all triggers for this server from Redis
+    const serverCommands = await redis.hgetall(`commands:${message.guild.id}`);
+    
+    for (const cmdId in serverCommands) {
+        const cmd = JSON.parse(serverCommands[cmdId]);
+        
+        // 2. CHECK TRIGGERS (Like YAGPDB)
+        let triggered = false;
+        if (cmd.type === 'prefix' && message.content.startsWith(cmd.prefix + cmd.name)) triggered = true;
+        if (cmd.type === 'message' && message.content.toLowerCase().includes(cmd.trigger.toLowerCase())) triggered = true;
+        // Add more: regex, startsWith, etc.
+
+        if (triggered) {
+            // 3. EXECUTE VIA SANDBOX
+            // Pass the message/user context into the VM
+            const result = await executeRemoteCode(cmd.code, cmd.language, {
+                user: message.author,
+                channel: message.channel,
+                content: message.content
+            });
+            if (result) message.reply(result);
+        }
+    }
 });
-
-client.once('ready', async () => {
-  await loadGlobalState();
-  console.log(`✅ Bot ready as ${client.user.tag}`);
-});
-
-client.on('messageCreate', async message => {
-  if (message.author.bot || !message.guild) return;
-  if (!isEnabled()) return;
-
-  if (message.content === '!emergency stop') {
-    await disableGlobally();
-    return message.reply("🛑 Global command system disabled.");
-  }
-
-  const allowed = await checkRateLimit(message.author.id, message.guild.id);
-  if (!allowed) {
-    return message.reply("❌ Rate limit exceeded. Try again later.");
-  }
-
-  await handleMessage(message);
-});
-
-client.login(process.env.TOKEN);
