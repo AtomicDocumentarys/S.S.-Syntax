@@ -5,10 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S.S. Syntax | Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Essential Inline CSS for Visibility */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; padding: 20px; }
+        .server-card { background: #112240; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; border: 2px solid transparent; transition: 0.3s; }
+        .server-card:hover { border-color: #64ffda; }
+        .server-icon img { width: 64px; height: 64px; border-radius: 50%; }
+        .code-editor-container textarea { width: 100%; height: 300px; background: #020c1b; color: #64ffda; font-family: monospace; padding: 10px; border: 1px solid #233554; }
+    </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <header class="dashboard-header">
             <div class="header-content">
                 <div class="logo-section">
@@ -16,7 +25,7 @@
                     <div class="tagline">The Premier Vessel for Your Source Sauce</div>
                 </div>
                 <div class="user-section" id="userSection">
-                    <div class="user-info" id="userInfo">
+                    <div id="userInfo">
                         <button class="btn-login" onclick="login()">Login with Discord</button>
                     </div>
                 </div>
@@ -24,330 +33,101 @@
             <nav class="nav-tabs" id="navTabs" style="display: none;">
                 <button class="tab-btn active" onclick="showTab('server-tab')">Server Management</button>
                 <button class="tab-btn" onclick="showTab('command-tab')">Command Builder</button>
-                <button class="tab-btn" onclick="showTab('database-tab')">Database Viewer</button>
-                <button class="tab-btn" onclick="showTab('analytics-tab')">Analytics</button>
-                <button class="tab-btn" onclick="showTab('settings-tab')">Settings</button>
             </nav>
         </header>
 
-        <!-- Main Content -->
         <main class="dashboard-main">
-            <!-- Server Selection Tab -->
             <div id="server-tab" class="tab-content active">
-                <div class="tab-header">
-                    <h2>Server Management</h2>
-                    <p>Select a server to manage its commands and settings</p>
-                </div>
+                <h2>Select a Server</h2>
                 <div class="server-grid" id="serverGrid">
-                    <div class="server-card loading">
-                        <div class="server-icon">⌛</div>
-                        <div class="server-name">Loading servers...</div>
-                    </div>
+                    <p>Please login to see your servers.</p>
                 </div>
             </div>
 
-            <!-- Command Builder Tab -->
             <div id="command-tab" class="tab-content">
-                <div class="tab-header">
-                    <h2>Command Builder</h2>
-                    <p>Create and manage custom commands for your server</p>
-                </div>
-                
-                <!-- Command Limits Display -->
-                <div class="limits-display">
-                    <div class="limit-item">
-                        <span class="limit-label">Commands Used:</span>
-                        <span id="commandsUsed">0</span> / <span id="maxCommands">100</span>
-                    </div>
-                    <div class="limit-item">
-                        <span class="limit-label">Character Limit:</span>
-                        <span id="charactersUsed">0</span> / <span id="maxCharacters">20,000</span>
-                    </div>
-                </div>
-
-                <!-- Command Creation Form -->
+                <h2>Command Builder</h2>
                 <div class="command-form">
-                    <h3>Create New Command</h3>
-                    
-                    <div class="form-grid">
-                        <!-- Command Basics -->
-                        <div class="form-section">
-                            <h4>Command Basics</h4>
-                            <div class="form-group">
-                                <label for="commandName">Command Name *</label>
-                                <input type="text" id="commandName" placeholder="welcome" maxlength="32">
-                                <small>Letters, numbers, and underscores only</small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="commandDescription">Description</label>
-                                <input type="text" id="commandDescription" placeholder="Sends a welcome message" maxlength="100">
-                            </div>
-                        </div>
-
-                        <!-- Command Type -->
-                        <div class="form-section">
-                            <h4>Command Type & Trigger</h4>
-                            
-                            <div class="form-group">
-                                <label for="commandType">Command Type *</label>
-                                <select id="commandType" onchange="updateTriggerOptions()">
-                                    <option value="">Select type...</option>
-                                    <option value="prefix">Prefix Command</option>
-                                    <option value="slash">Slash Command</option>
-                                    <option value="message">Message Trigger</option>
-                                    <option value="reaction">Reaction Trigger</option>
-                                    <option value="member">Member Event</option>
-                                </select>
-                            </div>
-
-                            <!-- Prefix Selection (shown for prefix commands) -->
-                            <div class="form-group" id="prefixGroup" style="display: none;">
-                                <label for="commandPrefix">Command Prefix</label>
-                                <select id="commandPrefix">
-                                    <option value="!">! (Exclamation)</option>
-                                    <option value="-">- (Dash)</option>
-                                    <option value="$">$ (Dollar)</option>
-                                    <option value="?">? (Question)</option>
-                                    <option value=">">> (Greater than)</option>
-                                    <option value="custom">Custom Prefix</option>
-                                </select>
-                                <input type="text" id="customPrefix" placeholder="Enter custom prefix" style="display: none; margin-top: 5px;">
-                            </div>
-
-                            <!-- Trigger Configuration -->
-                            <div class="form-group" id="triggerGroup" style="display: none;">
-                                <label for="commandTrigger">Trigger Condition</label>
-                                <input type="text" id="commandTrigger" placeholder="hello or welcome">
-                                <small>For message triggers: words that activate the command</small>
-                            </div>
-                        </div>
-
-                        <!-- Language Selection -->
-                        <div class="form-section">
-                            <h4>Execution Settings</h4>
-                            
-                            <div class="form-group">
-                                <label for="commandLanguage">Programming Language *</label>
-                                <select id="commandLanguage">
-                                    <option value="js">JavaScript</option>
-                                    <option value="py">Python</option>
-                                    <option value="ts">TypeScript</option>
-                                    <option value="go">Go</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="commandCooldown">Cooldown (seconds)</label>
-                                <input type="number" id="commandCooldown" value="0" min="0" max="3600">
-                                <small>0 = no cooldown</small>
-                            </div>
-                        </div>
+                    <div class="form-group">
+                        <label>Command Name</label>
+                        <input type="text" id="commandName" placeholder="e.g., hello">
                     </div>
-
-                    <!-- Code Editor -->
-                    <div class="form-section">
-                        <h4>Command Code</h4>
-                        <div class="code-editor-container">
-                            <div class="editor-header">
-                                <span id="languageDisplay">JavaScript</span>
-                                <span class="char-counter">
-                                    <span id="charCount">0</span> / 20,000 characters
-                                </span>
-                            </div>
-                            <textarea id="commandCode" placeholder="// Write your code here...
-// Example: return 'Hello world!';" 
-                                      oninput="updateCharCount()"></textarea>
-                            <div class="editor-footer">
-                                <small>Available variables: message, channel, guild, user, args</small>
-                            </div>
-                        </div>
+                    <div class="form-group">
+                        <label>Trigger Type</label>
+                        <select id="commandType" onchange="updateTriggerOptions()">
+                            <option value="prefix">Prefix (!cmd)</option>
+                            <option value="message">Keyword Match</option>
+                        </select>
                     </div>
-
-                    <!-- Action Buttons -->
-                    <div class="form-actions">
-                        <button class="btn btn-primary" onclick="validateAndCreateCommand()">
-                            Create Command
-                        </button>
-                        <button class="btn btn-secondary" onclick="testCommand()">
-                            Test Command
-                        </button>
-                        <button class="btn btn-outline" onclick="resetForm()">
-                            Reset Form
-                        </button>
+                    <div id="prefixGroup" class="form-group">
+                        <label>Prefix</label>
+                        <input type="text" id="commandPrefix" value="!">
                     </div>
-                </div>
-
-                <!-- Existing Commands -->
-                <div class="existing-commands">
-                    <h3>Your Commands</h3>
-                    <div class="commands-filter">
-                        <input type="text" id="commandSearch" placeholder="Search commands..." oninput="filterCommands()">
-                        <select id="languageFilter" onchange="filterCommands()">
-                            <option value="">All Languages</option>
+                    <div id="triggerGroup" class="form-group" style="display:none;">
+                        <label>Trigger Word</label>
+                        <input type="text" id="commandTrigger">
+                    </div>
+                    <div class="form-group">
+                        <label>Language</label>
+                        <select id="commandLanguage" onchange="applyTemplate()">
                             <option value="js">JavaScript</option>
                             <option value="py">Python</option>
-                            <option value="ts">TypeScript</option>
                             <option value="go">Go</option>
                         </select>
                     </div>
-                    <div id="commandList" class="command-list">
-                        <!-- Commands will be loaded here -->
+                    <div class="code-editor-container">
+                        <div class="editor-header"><span id="languageDisplay">JavaScript</span></div>
+                        <textarea id="commandCode"></textarea>
                     </div>
-                </div>
-            </div>
-
-            <!-- Database Viewer Tab -->
-            <div id="database-tab" class="tab-content">
-                <div class="tab-header">
-                    <h2>Database Viewer</h2>
-                    <p>View and manage your server's data</p>
-                </div>
-                
-                <div class="database-controls">
-                    <select id="databaseServerSelect" onchange="loadServerData()">
-                        <option value="">Select a server...</option>
-                    </select>
-                    <button class="btn" onclick="exportServerData()">Export Data</button>
-                    <button class="btn btn-danger" onclick="clearServerData()" style="display: none;">Clear All Data</button>
-                </div>
-
-                <div id="databaseContent" class="database-content">
-                    <div class="no-data">
-                        <p>Select a server to view its data</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Analytics Tab -->
-            <div id="analytics-tab" class="tab-content">
-                <div class="tab-header">
-                    <h2>Analytics Dashboard</h2>
-                    <p>Monitor your bot's performance and usage</p>
-                </div>
-                
-                <div class="analytics-grid">
-                    <div class="metric-card">
-                        <h3>Total Commands</h3>
-                        <div class="metric-value" id="totalCommands">0</div>
-                        <div class="metric-label">Across all servers</div>
-                    </div>
-                    <div class="metric-card">
-                        <h3>Active Servers</h3>
-                        <div class="metric-value" id="activeServers">0</div>
-                        <div class="metric-label">Currently using bot</div>
-                    </div>
-                    <div class="metric-card">
-                        <h3>Commands Today</h3>
-                        <div class="metric-value" id="commandsToday">0</div>
-                        <div class="metric-label">Executed commands</div>
-                    </div>
-                    <div class="metric-card">
-                        <h3>Error Rate</h3>
-                        <div class="metric-value" id="errorRate">0%</div>
-                        <div class="metric-label">Failed executions</div>
-                    </div>
-                </div>
-
-                <div class="charts-container">
-                    <div class="chart-card">
-                        <h3>Language Usage</h3>
-                        <canvas id="languageChart" width="400" height="200"></canvas>
-                    </div>
-                    <div class="chart-card">
-                        <h3>Command Activity</h3>
-                        <canvas id="activityChart" width="400" height="200"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Settings Tab -->
-            <div id="settings-tab" class="tab-content">
-                <div class="tab-header">
-                    <h2>Bot Settings</h2>
-                    <p>Configure your bot's behavior and preferences</p>
-                </div>
-                
-                <div class="settings-grid">
-                    <div class="setting-group">
-                        <h3>Rate Limits</h3>
-                        <div class="setting-item">
-                            <label>User Rate Limit</label>
-                            <span>10 commands per minute</span>
-                        </div>
-                        <div class="setting-item">
-                            <label>Server Rate Limit</label>
-                            <span>100 commands per minute</span>
-                        </div>
-                    </div>
-
-                    <div class="setting-group">
-                        <h3>Safety Settings</h3>
-                        <div class="setting-item">
-                            <label>
-                                <input type="checkbox" id="enableSandbox" checked>
-                                Enable Code Sandbox
-                            </label>
-                        </div>
-                        <div class="setting-item">
-                            <label>
-                                <input type="checkbox" id="enableLogging" checked>
-                                Enable Execution Logging
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="setting-group">
-                        <h3>Danger Zone</h3>
-                        <div class="setting-item">
-                            <button class="btn btn-danger" onclick="resetAllData()">
-                                Reset All Data
-                            </button>
-                            <small>This will delete all commands and settings</small>
-                        </div>
-                    </div>
+                    <button class="btn-login" onclick="validateAndCreateCommand()" style="margin-top:20px;">Deploy Command</button>
                 </div>
             </div>
         </main>
-
-        <!-- Footer -->
-        <footer class="dashboard-footer">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h4>S.S. Syntax</h4>
-                    <p>The Premier Vessel for Your Source Sauce</p>
-                </div>
-                <div class="footer-section">
-                    <a href="../terms.html" class="footer-link">Terms of Service</a>
-                    <a href="../privacy.html" class="footer-link">Privacy Policy</a>
-                </div>
-                <div class="footer-section">
-                    <span>Version 1.0.0</span>
-                </div>
-            </div>
-        </footer>
-    </div>
-
-    <!-- Add Bot Button -->
-    <div class="floating-action">
-        <a href="https://discord.com/oauth2/authorize?client_id=1466792124686008341&permissions=8&scope=bot%20applications.commands" 
-           class="fab" target="_blank" title="Add Bot to Server">
-            <span>+</span>
-        </a>
-    </div>
-
-    <!-- Modals -->
-    <div id="testModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('testModal')">&times;</span>
-            <h3>Test Command</h3>
-            <div id="testResult"></div>
-        </div>
     </div>
 
     <script src="auth.js"></script>
-    <script src="command-builder.js"></script>
     <script src="server-viewer.js"></script>
-    <script src="dashboard.js"></script>
+    <script src="command-builder.js"></script>
+    <script>
+        // Tab Switching Logic
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Login Redirect using YOUR URL
+        function login() {
+            window.location.href = "https://discord.com/oauth2/authorize?client_id=1466792124686008341&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%2Fcallback.html&scope=identify+email+guilds";
+        }
+
+        // Language Templates
+        const templates = {
+            js: `return "Hello from JS!";`,
+            py: `print("Hello from Python!")`,
+            go: `fmt.Printf("Hello from Go!")`
+        };
+
+        function applyTemplate() {
+            const lang = document.getElementById('commandLanguage').value;
+            document.getElementById('commandCode').value = templates[lang];
+            document.getElementById('languageDisplay').innerText = lang.toUpperCase();
+        }
+
+        function updateTriggerOptions() {
+            const type = document.getElementById('commandType').value;
+            document.getElementById('prefixGroup').style.display = type === 'prefix' ? 'block' : 'none';
+            document.getElementById('triggerGroup').style.display = type === 'message' ? 'block' : 'none';
+        }
+
+        // Initialize
+        window.onload = () => {
+            applyTemplate();
+            checkAuth().then(token => {
+                if (token) loadServers();
+            });
+        };
+    </script>
 </body>
-</html>
+                                </html>
+                            
