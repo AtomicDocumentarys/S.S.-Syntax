@@ -73,3 +73,29 @@ client.on('messageCreate', async (message) => {
 
 client.login(config.TOKEN);
 app.listen(process.env.PORT || 80);
+
+const { exec } = require('child_process');
+
+// Example function to run Python code
+function runPython(code) {
+    return new Promise((resolve, reject) => {
+        // We pass the code as a string to the python3 command
+        exec(`python3 -c "${code.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
+            if (error) reject(stderr);
+            resolve(stdout);
+        });
+    });
+}
+
+// Example function to run Go code
+function runGo(code) {
+    return new Promise((resolve, reject) => {
+        // Go usually requires a file to run quickly (go run)
+        const fs = require('fs');
+        fs.writeFileSync('temp.go', code);
+        exec(`go run temp.go`, (error, stdout, stderr) => {
+            if (error) reject(stderr);
+            resolve(stdout);
+        });
+    });
+}
