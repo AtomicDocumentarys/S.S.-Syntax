@@ -6,14 +6,19 @@
   "scripts": {
     "start": "node bot.js"
   },
+  {
   "dependencies": {
-    "discord.js": "^14.0.0",
-    "express": "^4.18.0",
-    "body-parser": "^1.20.0",
-    "vm2": "^3.9.0",
-    "ioredis": "^5.0.0",
-    "axios": "^1.0.0",
-    "cors": "^2.8.5"
+    "discord.js": "^14.14.1",
+    "express": "^4.18.2",
+    "ioredis": "^5.3.2",
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "vm2": "^3.9.19",
+    "express-validator": "^7.0.1"
+  }
+}
+
   },
   "engines": {
     "node": "18.x"
