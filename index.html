@@ -2,105 +2,100 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.S. Syntax</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>S.S. Syntax | Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
     <style>
-        :root { --bg: #0b0e11; --nav: #15191c; --accent: #5865f2; --text: #f0f0f0; --border: #2d3238; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        :root { --bg: #0b0e11; --nav: #15191c; --card: #1e2327; --accent: #3ba55c; --text: #f0f0f0; --border: #2d3238; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-        .menu-btn { position: fixed; top: 15px; left: 15px; z-index: 1000; background: var(--accent); border: none; color: white; padding: 10px; border-radius: 5px; cursor: pointer; font-size: 20px; }
+        /* HEADER & MENU BUTTON */
+        header { background: var(--nav); height: 60px; display: flex; align-items: center; padding: 0 15px; border-bottom: 1px solid #000; justify-content: space-between; z-index: 1001; }
+        .menu-btn { background: #2d3238; border: none; color: white; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 18px; display: flex; align-items: center; gap: 8px; }
 
-        nav { width: 260px; min-width: 260px; background: var(--nav); border-right: 1px solid var(--border); transition: 0.3s; transform: translateX(-260px); position: absolute; height: 100%; z-index: 999; display: flex; flex-direction: column; padding-top: 60px; }
-        nav.open { transform: translateX(0); position: relative; }
+        /* SIDEBAR (TRANSFORM: -100% is ALWAYS CLOSED INITIALLY) */
+        nav { position: fixed; top: 60px; left: -100%; width: 100%; height: calc(100% - 60px); background: var(--nav); transition: 0.3s ease; z-index: 1000; overflow-y: auto; }
+        nav.open { left: 0; }
 
-        .sidebar-section { padding: 15px; border-bottom: 1px solid var(--border); }
-        .small-select { width: 100%; background: #1e2327; color: white; border: 1px solid var(--border); padding: 8px; border-radius: 4px; font-size: 12px; margin-bottom: 10px; outline: none; }
+        .sidebar-section { padding: 20px; border-bottom: 1px solid var(--border); }
+        .label { display: block; font-size: 11px; color: #72767d; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
 
-        .nav-item { padding: 12px 20px; cursor: pointer; color: #b9bbbe; transition: 0.2s; font-size: 14px; }
-        .nav-item:hover, .nav-item.active { background: #2d3238; color: white; border-left: 3px solid var(--accent); }
+        /* BLACK CUSTOM BUTTONS/DROPDOWNS */
+        .custom-input, .custom-select { width: 100%; background: #000; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 4px; margin-bottom: 10px; box-sizing: border-box; appearance: none; }
+        .nav-link { padding: 15px 25px; color: #b9bbbe; cursor: pointer; border-bottom: 1px solid #1a1d21; }
+        .nav-link:active { background: var(--accent); color: white; }
 
-        main { flex-grow: 1; padding: 20px; overflow-y: auto; padding-top: 70px; width: 100%; }
-        .view { display: none; }
+        main { flex: 1; overflow-y: auto; padding: 15px; box-sizing: border-box; padding-top: 20px; }
+        .view { display: none; width: 100%; }
         .view.active { display: block; }
 
-        .card { background: #181d21; border-radius: 8px; padding: 15px; border: 1px solid var(--border); margin-bottom: 15px; }
-        #code-editor { height: 350px; border-radius: 5px; border: 1px solid #333; margin: 10px 0; }
-        .console { background: #000; color: #0f0; padding: 10px; height: 120px; overflow-y: auto; font-family: monospace; font-size: 12px; border: 1px solid #444; margin-top: 10px; }
-        .btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        
-        iframe { width: 100%; height: 70vh; border: none; border-radius: 8px; background: white; }
-        .db-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .db-table td, .db-table th { border: 1px solid var(--border); padding: 8px; text-align: left; }
+        .card { background: var(--card); border-radius: 8px; padding: 15px; margin-bottom: 15px; border: 1px solid var(--border); }
+        #code-editor { height: 300px; border: 1px solid #000; border-radius: 4px; margin-bottom: 10px; }
+        .console { background: #000; color: #0f0; padding: 10px; height: 100px; overflow-y: auto; font-family: monospace; font-size: 11px; border: 1px solid #333; }
+
+        .btn { padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 5px; }
+        .btn-green { background: var(--accent); color: white; }
+        .btn-red { background: #d83c3e; color: white; }
+
+        iframe { width: 100%; height: 80vh; border: none; background: white; border-radius: 8px; }
     </style>
 </head>
 <body>
 
-    <button class="menu-btn" onclick="toggleMenu()">☰</button>
+    <header>
+        <div style="font-weight: bold; letter-spacing: 1px;">S.S. SYNTAX</div>
+        <button class="menu-btn" onclick="toggleMenu()">☰ MENU</button>
+    </header>
 
     <nav id="sidebar">
         <div class="sidebar-section">
-            <label style="font-size: 10px; color: #888; font-weight: bold;">ACCOUNT</label>
-            <select id="acc-select" class="small-select"><option>Guest</option></select>
+            <span class="label">User Account</span>
+            <div id="acc-name" class="custom-input" style="background:#111;">Syncing...</div>
             
-            <label style="font-size: 10px; color: #888; font-weight: bold;">SERVER</label>
-            <select id="guild-select" class="small-select" onchange="serverChanged()"><option value="">Select Server</option></select>
+            <span class="label">Control Server</span>
+            <select id="guild-select" class="custom-select" onchange="serverChanged()">
+                <option value="">-- Select mutual server --</option>
+            </select>
         </div>
-
-        <div class="nav-item active" onclick="switchTab('home')">Home</div>
-        <div class="nav-item" onclick="switchTab('commands')">Custom Commands</div>
-        <div class="nav-item" onclick="switchTab('database')">Database</div>
-        <div class="nav-item" onclick="switchTab('terms')">Terms of Service</div>
-        <div class="nav-item" onclick="switchTab('privacy')">Privacy Policy</div>
+        <div class="nav-link" onclick="switchTab('home')">Home</div>
+        <div class="nav-link" onclick="switchTab('commands')">Custom Commands</div>
+        <div class="nav-link" onclick="switchTab('database')">Database Management</div>
+        <div class="nav-link" onclick="switchTab('terms')">Terms of Service</div>
+        <div class="nav-link" onclick="switchTab('privacy')">Privacy Policy</div>
     </nav>
 
     <main>
         <div id="view-home" class="view active">
-            <h1>S.S. Syntax Dashboard</h1>
-            <p>Welcome! Use the sidebar to manage your bot settings and custom scripts.</p>
+            <div class="card"><h1>Dashboard</h1><p>Open menu to select a server.</p></div>
         </div>
 
         <div id="view-commands" class="view">
-            <h2>Command Manager</h2>
-            <div id="command-list-container">
-                <button class="btn" onclick="showEditor()">+ Create New Command</button>
-                <div id="command-list" style="margin-top:20px;"></div>
+            <div id="list-mode">
+                <button class="btn btn-green" onclick="openEditor()">+ CREATE NEW COMMAND</button>
+                <div id="command-list" style="margin-top:15px;"></div>
             </div>
-
-            <div id="editor-container" style="display:none;">
-                <button onclick="hideEditor()" style="background:none; color:var(--accent); border:none; cursor:pointer; font-weight:bold;">← BACK TO LIST</button>
-                <div class="card" style="margin-top:10px;">
-                    <input type="text" id="cmd-name" placeholder="Command Trigger (e.g. hello)" style="width:100%; padding:10px; background:#000; color:#fff; border:1px solid #444; box-sizing: border-box;">
+            <div id="edit-mode" style="display:none;">
+                <div class="card">
+                    <span class="label">Trigger Type</span>
+                    <select id="cmd-type" class="custom-select"><option>Command (prefix)</option></select>
+                    <span class="label">Trigger Name</span>
+                    <input type="text" id="cmd-trigger" class="custom-input" placeholder="e.g. balance">
+                    <span class="label">Code (Use db.set, db.get)</span>
                     <div id="code-editor"></div>
-                    
-                    <label style="font-size: 11px; color: #0f0; font-weight: bold;">LIVE CONSOLE OUTPUT</label>
-                    <div class="console" id="log-output">Execute a command in Discord to see logs here...</div>
-                    
-                    <button class="btn" style="margin-top:10px; width: 100%;" onclick="saveCommand()">SAVE & DEPLOY</button>
+                    <div class="console" id="log-output">Console ready.</div>
+                    <button class="btn btn-green" onclick="saveCommand()">SAVE COMMAND</button>
+                    <button class="btn btn-red" onclick="closeEditor()">CANCEL</button>
                 </div>
             </div>
         </div>
 
         <div id="view-database" class="view">
-            <h2>Server Database</h2>
-            <div class="card">
-                <button class="btn" onclick="fetchDatabase()">Refresh Data</button>
-                <table class="db-table">
-                    <thead><tr><th>Key/ID</th><th>Value/Script</th></tr></thead>
-                    <tbody id="db-body"><tr><td colspan="2">Select a server to view database content.</td></tr></tbody>
-                </table>
-            </div>
+            <h2>Database Viewer</h2>
+            <div id="db-content"></div>
         </div>
 
-        <div id="view-terms" class="view">
-            <h2>Terms of Service</h2>
-            <iframe src="terms.html"></iframe>
-        </div>
-
-        <div id="view-privacy" class="view">
-            <h2>Privacy Policy</h2>
-            <iframe src="privacy.html"></iframe>
-        </div>
+        <div id="view-terms" class="view"><iframe src="terms.html"></iframe></div>
+        <div id="view-privacy" class="view"><iframe src="privacy.html"></iframe></div>
     </main>
 
     <script>
@@ -112,12 +107,11 @@
         function toggleMenu() { document.getElementById('sidebar').classList.toggle('open'); }
 
         function switchTab(t) {
+            if(!currentGuildId && (t==='commands' || t==='database')) return alert("Select server first!");
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             document.getElementById('view-' + t).classList.add('active');
-            event.currentTarget.classList.add('active');
-            if(t === 'database') fetchDatabase();
-            if(window.innerWidth < 900) toggleMenu(); 
+            if(t === 'database') loadDatabase();
+            toggleMenu(); 
         }
 
         async function serverChanged() {
@@ -125,70 +119,85 @@
             if(currentGuildId) loadCommands();
         }
 
-        setInterval(async () => {
-            if (!currentGuildId || document.getElementById('editor-container').style.display === 'none') return;
-            const res = await fetch(`/api/logs/${currentGuildId}`);
-            const logs = await res.json();
-            const logBox = document.getElementById('log-output');
-            logBox.innerHTML = logs.map(l => `<div><span style="color:#888">[${l.timestamp}]</span> ${l.message}</div>`).join('');
-            logBox.scrollTop = logBox.scrollHeight;
-        }, 2000);
+        async function loadDatabase() {
+            const res = await fetch(`/api/db-all/${currentGuildId}`);
+            const data = await res.json();
+            const container = document.getElementById('db-content');
+            container.innerHTML = Object.entries(data).map(([k, v]) => `
+                <div class="card" style="display:flex; justify-content:space-between;">
+                    <span><b>${k}</b>: ${v}</span>
+                    <button onclick="deleteDb('${k}')" style="color:red; background:none; border:none;">DEL</button>
+                </div>
+            `).join('') || '<p>No data stored.</p>';
+        }
+
+        async function deleteDb(key) {
+            await fetch('/api/db-delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ guildId: currentGuildId, key })
+            });
+            loadDatabase();
+        }
+
+        function openEditor() { 
+            document.getElementById('list-mode').style.display='none'; 
+            document.getElementById('edit-mode').style.display='block'; 
+            editor.resize(); 
+        }
+        function closeEditor() { 
+            document.getElementById('list-mode').style.display='block'; 
+            document.getElementById('edit-mode').style.display='none'; 
+        }
+
+        async function saveCommand() {
+            const command = {
+                id: Date.now(),
+                trigger: document.getElementById('cmd-trigger').value,
+                code: editor.getValue()
+            };
+            await fetch('/api/save-command', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ guildId: currentGuildId, command })
+            });
+            closeEditor();
+            loadCommands();
+        }
 
         async function loadCommands() {
             const res = await fetch(`/api/commands/${currentGuildId}`);
             const cmds = await res.json();
             document.getElementById('command-list').innerHTML = cmds.map(c => `
-                <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-                    <span><strong>!${c.name}</strong></span>
-                    <button onclick='editCommand(${JSON.stringify(c)})' style="background:none; color:var(--accent); border:none; cursor:pointer; font-weight:bold;">EDIT</button>
-                </div>
+                <div class="card" onclick='editExisting(${JSON.stringify(c)})'>!${c.trigger} (Tap to edit)</div>
             `).join('');
         }
 
-        async function fetchDatabase() {
-            if(!currentGuildId) return;
-            const res = await fetch(`/api/database/${currentGuildId}`);
-            const data = await res.json();
-            const body = document.getElementById('db-body');
-            body.innerHTML = Object.entries(data).map(([k, v]) => `<tr><td>${k}</td><td>${v.substring(0, 50)}...</td></tr>`).join('') || '<tr><td colspan="2">No data found.</td></tr>';
-        }
-
-        function showEditor() { document.getElementById('editor-container').style.display='block'; document.getElementById('command-list-container').style.display='none'; editor.resize(); }
-        function hideEditor() { document.getElementById('editor-container').style.display='none'; document.getElementById('command-list-container').style.display='block'; }
-
-        function editCommand(c) {
-            document.getElementById('cmd-name').value = c.name;
+        function editExisting(c) {
+            document.getElementById('cmd-trigger').value = c.trigger;
             editor.setValue(c.code, -1);
-            showEditor();
-        }
-
-        async function saveCommand() {
-            await fetch('/api/save-command', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ guildId: currentGuildId, command: { id: Date.now(), name: document.getElementById('cmd-name').value, code: editor.getValue() }})
-            });
-            alert("Command Deployed!");
-            hideEditor();
-            loadCommands();
+            openEditor();
         }
 
         async function checkAuth() {
             const token = localStorage.getItem('discord_token');
             if (!token) return;
-            const userRes = await fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token}` } });
-            const user = await userRes.json();
-            document.getElementById('acc-select').innerHTML = `<option>${user.username}</option>`;
-
-            const guildRes = await fetch('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${token}` } });
-            const guilds = await guildRes.json();
+            const res = await fetch('/api/mutual-servers', { headers: { Authorization: `Bearer ${token}` } });
+            const guilds = await res.json();
             const select = document.getElementById('guild-select');
-            guilds.filter(g => (BigInt(g.permissions) & 0x8n)).forEach(g => {
-                select.innerHTML += `<option value="${g.id}">${g.name}</option>`;
-            });
+            guilds.forEach(g => { select.innerHTML += `<option value="${g.id}">${g.name}</option>`; });
+            document.getElementById('acc-name').innerText = "Account Connected";
         }
+
+        // Live Log Polling
+        setInterval(async () => {
+            if (!currentGuildId || document.getElementById('edit-mode').style.display === 'none') return;
+            const res = await fetch(`/api/logs/${currentGuildId}`);
+            const logs = await res.json();
+            document.getElementById('log-output').innerHTML = logs.map(l => `<div>[${l.timestamp}] ${l.message}</div>`).join('');
+        }, 2000);
+
         window.onload = checkAuth;
     </script>
 </body>
-    </html>
-                    
+</html>
