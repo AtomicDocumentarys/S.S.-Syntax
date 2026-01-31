@@ -5,145 +5,114 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S.S. Syntax | Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
-    <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --bg: #0b0e11; --nav: #15191c; --accent: #5865f2; --text: #f0f0f0; --border: #2d3238; }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-        /* TOP HEADER */
-        header { height: 60px; background: var(--nav); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; z-index: 100; }
-        .dropdown-group { display: flex; gap: 15px; }
-        select { background: #1e2327; color: white; border: 1px solid var(--border); padding: 8px 15px; border-radius: 5px; outline: none; cursor: pointer; min-width: 150px; }
-
-        /* MAIN BODY */
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { height: 60px; background: var(--nav); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
         .wrapper { display: flex; flex-grow: 1; overflow: hidden; }
-
-        /* SIDEBAR */
-        nav { width: 240px; background: var(--nav); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 10px 0; }
-        .nav-item { padding: 12px 25px; cursor: pointer; color: #b9bbbe; transition: 0.2s; display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 14px; }
-        .nav-item:hover, .nav-item.active { background: #2d3238; color: white; border-left: 3px solid var(--accent); }
-        .nav-category { font-size: 11px; color: #4f545c; padding: 20px 25px 5px; text-transform: uppercase; font-weight: bold; }
-
-        /* CONTENT AREA */
-        main { flex-grow: 1; padding: 30px; overflow-y: auto; background: var(--bg); position: relative; }
-        .view { display: none; max-width: 1000px; margin: auto; }
+        nav { width: 240px; background: var(--nav); border-right: 1px solid var(--border); }
+        .nav-item { padding: 12px 25px; cursor: pointer; color: #b9bbbe; display: flex; align-items: center; gap: 10px; }
+        .nav-item.active { background: #2d3238; color: white; border-left: 3px solid var(--accent); }
+        main { flex-grow: 1; padding: 30px; overflow-y: auto; }
+        .view { display: none; }
         .view.active { display: block; }
-
-        /* CARDS & ELEMENTS */
         .card { background: #181d21; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
         #code-editor { height: 400px; border-radius: 5px; margin: 15px 0; border: 1px solid #333; }
-        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; background: var(--accent); color: white; }
-        .btn-invite { background: #3ba55c; }
-        
-        .console { background: #000; color: #0f0; padding: 15px; height: 200px; border-radius: 5px; font-family: monospace; overflow-y: auto; margin-top: 10px; }
+        .console { background: #000; color: #0f0; padding: 15px; height: 150px; border-radius: 5px; font-family: monospace; overflow-y: auto; }
+        select { background: #1e2327; color: white; padding: 8px; border-radius: 5px; }
     </style>
 </head>
 <body>
 
     <header>
         <div style="font-weight: bold; color: var(--accent); font-size: 20px;">S.S. Syntax</div>
-        <div class="dropdown-group">
-            <select id="acc-select"><option>User Account</option></select>
+        <div style="display:flex; gap:10px;">
+            <select id="acc-select"><option>Loading...</option></select>
             <select id="guild-select" onchange="serverChanged()"><option value="">Select Server</option></select>
-            <button class="btn btn-invite" onclick="window.open('https://discord.com/api/oauth2/authorize?client_id=1466792124686008341&permissions=8&scope=bot')">Invite Bot</button>
         </div>
     </header>
 
     <div class="wrapper">
         <nav>
-            <div class="nav-category">Navigation</div>
             <div class="nav-item active" onclick="switchTab('home')">🏠 Home</div>
             <div class="nav-item" onclick="switchTab('commands')">📜 Custom Commands</div>
-            
-            <div class="nav-category">Core</div>
             <div class="nav-item" onclick="switchTab('database')">🗄️ Database</div>
-            <div class="nav-item" style="opacity: 0.5;">📡 Database (Coming Soon)</div>
-
-            <div class="nav-category">Legal</div>
-            <div class="nav-item" onclick="switchTab('terms')">📑 Terms of Service</div>
-            <div class="nav-item" onclick="switchTab('privacy')">🛡️ Privacy Policy</div>
-            
-            <div style="margin-top: auto; padding: 20px;">
-                <button class="btn" style="width: 100%; background: #444;" onclick="login()">Re-Sync</button>
-            </div>
+            <div class="nav-item" onclick="switchTab('terms')">📑 Terms</div>
+            <div class="nav-item" onclick="switchTab('privacy')">🛡️ Privacy</div>
         </nav>
 
         <main>
             <div id="view-home" class="view active">
                 <h1>Welcome, <span id="user-name">Guest</span></h1>
-                <p>Select a server from the dropdown above to begin managing your bot.</p>
                 <div class="card">
                     <h3>Live Console Output</h3>
-                    <div class="console" id="log-output">System initialized...</div>
+                    <div class="console" id="log-output">Select a server to see logs...</div>
                 </div>
             </div>
 
             <div id="view-commands" class="view">
-                <h2>Custom Commands</h2>
-                <div id="editor-container" class="card" style="display:none;">
-                    <input type="text" id="cmd-name" placeholder="Command Name (e.g. ping)" style="width:100%; padding:10px; background:#0b0e11; color:white; border:1px solid #333; margin-bottom:10px;">
+                <h2>Commands</h2>
+                <div id="editor-container" style="display:none;" class="card">
+                    <input type="text" id="cmd-name" placeholder="Name" style="width:100%; margin-bottom:10px; padding:10px; background:#000; color:#fff;">
                     <div id="code-editor"></div>
-                    <button class="btn" onclick="saveCommand()">Save & Deploy</button>
-                    <button class="btn" style="background:#444;" onclick="hideEditor()">Cancel</button>
+                    <button onclick="saveCommand()" style="padding:10px; background:var(--accent); color:#fff; border:none; border-radius:4px;">Save</button>
+                    <button onclick="hideEditor()" style="padding:10px; background:#444; color:#fff; border:none; border-radius:4px;">Cancel</button>
                 </div>
                 <div id="command-list-container">
-                    <button class="btn" onclick="showEditor()">+ Create New Command</button>
+                    <button onclick="showEditor()" style="padding:10px; background:var(--accent); color:#fff; border:none; border-radius:4px;">+ New Command</button>
                     <div id="command-list" style="margin-top:20px;"></div>
                 </div>
             </div>
 
-            <div id="view-database" class="view">
-                <h2>Server Database</h2>
-                <div class="card">
-                    <p>Stored Keys for this server:</p>
-                    <div id="db-list">Please select a server first.</div>
-                </div>
-            </div>
-
-            <div id="view-terms" class="view"><h2>Terms of Service</h2><p>Your terms go here...</p></div>
-            <div id="view-privacy" class="view"><h2>Privacy Policy</h2><p>Your privacy policy goes here...</p></div>
+            <div id="view-database" class="view"><h2>Database</h2><div class="card" id="db-list">No data yet.</div></div>
+            <div id="view-terms" class="view"><h2>Terms</h2><p>Standard terms apply.</p></div>
+            <div id="view-privacy" class="view"><h2>Privacy</h2><p>We respect your data.</p></div>
         </main>
     </div>
 
     <script>
-        const socket = io();
+        let currentGuildId = null;
         let editor = ace.edit("code-editor");
         editor.setTheme("ace/theme/monokai");
         editor.session.setMode("ace/mode/javascript");
 
-        // TAB SWITCHING
-        function switchTab(tabId) {
+        function switchTab(t) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            document.getElementById('view-' + tabId).classList.add('active');
+            document.getElementById('view-' + t).classList.add('active');
             event.currentTarget.classList.add('active');
-            if(tabId === 'commands') editor.resize();
+            if(t === 'commands') editor.resize();
         }
 
-        // SERVER SELECTION
         async function serverChanged() {
-            const guildId = document.getElementById('guild-select').value;
-            if(!guildId) return;
-            socket.emit('join-server', guildId);
-            loadCommands(guildId);
-            document.getElementById('db-list').innerText = "Fetching data for " + guildId + "...";
+            currentGuildId = document.getElementById('guild-select').value;
+            if(!currentGuildId) return;
+            loadCommands();
         }
 
-        async function loadCommands(guildId) {
-            const res = await fetch(`/api/commands/${guildId}`);
+        // POLLING: Check for new logs every 2 seconds
+        setInterval(async () => {
+            if (!currentGuildId) return;
+            const res = await fetch(`/api/logs/${currentGuildId}`);
+            const logs = await res.json();
+            const logBox = document.getElementById('log-output');
+            logBox.innerHTML = logs.map(l => `<div>[${l.timestamp}] ${l.message}</div>`).join('');
+            logBox.scrollTop = logBox.scrollHeight;
+        }, 2000);
+
+        async function loadCommands() {
+            const res = await fetch(`/api/commands/${currentGuildId}`);
             const cmds = await res.json();
-            const list = document.getElementById('command-list');
-            list.innerHTML = cmds.map(c => `
+            document.getElementById('command-list').innerHTML = cmds.map(c => `
                 <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
                     <span>!${c.name}</span>
-                    <button class="btn" onclick='editCommand(${JSON.stringify(c)})'>Edit</button>
+                    <button onclick='editCommand(${JSON.stringify(c)})' style="padding:5px 10px;">Edit</button>
                 </div>
             `).join('');
         }
 
-        // EDITOR LOGIC
-        function showEditor() { document.getElementById('editor-container').style.display = 'block'; document.getElementById('command-list-container').style.display = 'none'; editor.resize(); }
-        function hideEditor() { document.getElementById('editor-container').style.display = 'none'; document.getElementById('command-list-container').style.display = 'block'; }
+        function showEditor() { document.getElementById('editor-container').style.display='block'; document.getElementById('command-list-container').style.display='none'; editor.resize(); }
+        function hideEditor() { document.getElementById('editor-container').style.display='none'; document.getElementById('command-list-container').style.display='block'; }
 
         function editCommand(c) {
             document.getElementById('cmd-name').value = c.name;
@@ -152,33 +121,25 @@
         }
 
         async function saveCommand() {
-            const guildId = document.getElementById('guild-select').value;
-            const name = document.getElementById('cmd-name').value;
-            const code = editor.getValue();
             await fetch('/api/save-command', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ guildId, command: { id: Date.now(), name, code }})
+                body: JSON.stringify({ guildId: currentGuildId, command: { id: Date.now(), name: document.getElementById('cmd-name').value, code: editor.getValue() }})
             });
             alert("Saved!");
             hideEditor();
-            loadCommands(guildId);
+            loadCommands();
         }
-
-        // AUTH & INITIALIZATION
-        function login() { window.location.href = `https://discord.com/api/oauth2/authorize?client_id=1466792124686008341&redirect_uri=${encodeURIComponent(window.location.origin + '/callback.html')}&response_type=code&scope=identify+guilds`; }
 
         async function checkAuth() {
             const token = localStorage.getItem('discord_token');
-            if (!token) return;
+            if (!token) return window.location.href = `https://discord.com/api/oauth2/authorize?client_id=1466792124686008341&redirect_uri=${encodeURIComponent(window.location.origin + '/callback.html')}&response_type=code&scope=identify+guilds`;
             
-            // Get User Profile
             const userRes = await fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token}` } });
-            const userData = await userRes.json();
-            document.getElementById('user-name').innerText = userData.username;
-            document.getElementById('acc-select').innerHTML = `<option>${userData.username}#${userData.discriminator}</option>`;
+            const user = await userRes.json();
+            document.getElementById('user-name').innerText = user.username;
+            document.getElementById('acc-select').innerHTML = `<option>${user.username}</option>`;
 
-            // Get Guilds
             const guildRes = await fetch('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${token}` } });
             const guilds = await guildRes.json();
             const select = document.getElementById('guild-select');
@@ -186,15 +147,7 @@
                 select.innerHTML += `<option value="${g.id}">${g.name}</option>`;
             });
         }
-
-        socket.on('log', d => {
-            const log = document.getElementById('log-output');
-            log.innerHTML += `<div>[${d.timestamp}] ${d.message}</div>`;
-            log.scrollTop = log.scrollHeight;
-        });
-
         window.onload = checkAuth;
     </script>
 </body>
-                </html>
-    
+</html>
