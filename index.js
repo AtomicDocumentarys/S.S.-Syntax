@@ -16,22 +16,22 @@ const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = 'https://official-sssyntax-website-production.up.railway.app/callback';
-const REDIS_URL = process.env.REDIS_URL;
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 // Check required environment variables
-if (!TOKEN || !CLIENT_ID || !CLIENT_SECRET || !REDIS_URL) {
+console.log('🔍 Checking environment variables...');
+console.log('TOKEN:', TOKEN ? '✓ Set' : '✗ Missing');
+console.log('CLIENT_ID:', CLIENT_ID ? '✓ Set' : '✗ Missing');
+console.log('CLIENT_SECRET:', CLIENT_SECRET ? '✓ Set' : '✗ Missing');
+console.log('REDIS_URL:', REDIS_URL ? '✓ Set' : '✗ Using default');
+
+if (!TOKEN || !CLIENT_ID || !CLIENT_SECRET) {
     console.error('❌ Missing required environment variables');
-    console.error('Required: TOKEN, CLIENT_ID, CLIENT_SECRET, REDIS_URL');
-    console.error('Found:');
-    console.error('TOKEN:', TOKEN ? '✓' : '✗');
-    console.error('CLIENT_ID:', CLIENT_ID ? '✓' : '✗');
-    console.error('CLIENT_SECRET:', CLIENT_SECRET ? '✓' : '✗');
-    console.error('REDIS_URL:', REDIS_URL ? '✓' : '✗');
+    console.error('Please set TOKEN, CLIENT_ID, and CLIENT_SECRET in Railway');
     process.exit(1);
 }
 
 console.log('✅ Environment variables validated');
-console.log('📝 Using Redirect URI:', REDIRECT_URI);
 
 const client = new Client({
     intents: [
@@ -43,7 +43,29 @@ const client = new Client({
 });
 
 const app = express();
-const redis = new Redis(REDIS_URL);
+
+// Redis connection with error handling
+let redis;
+try {
+    redis = new Redis(REDIS_URL, {
+        retryStrategy: function(times) {
+            const delay = Math.min(times * 50, 2000);
+            return delay;
+        },
+        maxRetriesPerRequest: 3
+    });
+    
+    redis.on('connect', () => {
+        console.log('✅ Redis connected successfully');
+    });
+    
+    redis.on('error', (err) => {
+        console.error('❌ Redis connection error:', err.message);
+    });
+} catch (error) {
+    console.error('❌ Failed to create Redis client:', error.message);
+    redis = null;
+}
 
 // Global state
 const rateLimit = new Map();
@@ -63,6 +85,16 @@ app.use((req, res, next) => {
     next();
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        timestamp: new Date().toISOString(),
+        redis: redis ? 'connected' : 'disconnected',
+        bot: client.readyAt ? 'ready' : 'starting'
+    });
+});
+
 // OAuth Callback Route
 app.get('/callback', async (req, res) => {
     try {
@@ -71,6 +103,8 @@ app.get('/callback', async (req, res) => {
         if (!code) {
             return res.redirect('/?error=no_code');
         }
+        
+        console.log('🔑 Processing OAuth callback with code');
         
         // Exchange code for token
         const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', 
@@ -93,7 +127,7 @@ app.get('/callback', async (req, res) => {
         res.redirect('/?token=' + access_token);
         
     } catch (error) {
-        console.error('OAuth callback error:', error.message);
+        console.error('❌ OAuth callback error:', error.message);
         res.redirect('/?error=auth_failed');
     }
 });
@@ -115,7 +149,7 @@ async function authenticateUser(req, res, next) {
         req.token = token;
         next();
     } catch (e) {
-        console.error('Authentication error:', e.message);
+        console.error('❌ Authentication error:', e.message);
         res.status(401).json({ error: 'Invalid token' });
     }
 }
@@ -142,7 +176,7 @@ async function verifyGuildAccess(req, res, next) {
         req.guild = guild;
         next();
     } catch (e) {
-        console.error('Guild access verification error:', e.message);
+        console.error('❌ Guild access verification error:', e.message);
         res.status(403).json({ error: 'Access verification failed' });
     }
 }
@@ -200,40 +234,18 @@ app.get('/api/mutual-servers', authenticateUser, async (req, res) => {
         
         res.json(mutual);
     } catch (e) {
-        console.error('Mutual servers error:', e.message);
+        console.error('❌ Mutual servers error:', e.message);
         res.status(500).json([]);
-    }
-});
-
-// Guild Meta Data
-app.get('/api/guild-meta/:guildId', authenticateUser, verifyGuildAccess, async (req, res) => {
-    try {
-        const guild = req.guild;
-        res.json({
-            roles: guild.roles.cache
-                .filter(r => !r.managed && r.id !== guild.id)
-                .map(r => ({ 
-                    id: r.id, 
-                    name: r.name, 
-                    color: r.hexColor 
-                })),
-            channels: guild.channels.cache
-                .filter(c => c.type === 0)
-                .map(c => ({ 
-                    id: c.id, 
-                    name: c.name, 
-                    type: c.type 
-                }))
-        });
-    } catch (e) {
-        console.error('Guild meta error:', e.message);
-        res.status(500).json({ roles: [], channels: [] });
     }
 });
 
 // Commands Management
 app.get('/api/commands/:guildId', authenticateUser, verifyGuildAccess, async (req, res) => {
     try {
+        if (!redis) {
+            return res.status(500).json({ error: 'Redis not available' });
+        }
+        
         const commands = await redis.hgetall('commands:' + req.params.guildId);
         const cmdList = Object.values(commands).map(c => {
             try {
@@ -245,7 +257,7 @@ app.get('/api/commands/:guildId', authenticateUser, verifyGuildAccess, async (re
         
         res.json(cmdList);
     } catch (e) {
-        console.error('Commands fetch error:', e.message);
+        console.error('❌ Commands fetch error:', e.message);
         res.status(500).json([]);
     }
 });
@@ -260,6 +272,10 @@ app.post('/api/save-command', authenticateUser, verifyGuildAccess, [
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
+        }
+        
+        if (!redis) {
+            return res.status(500).json({ error: 'Redis not available' });
         }
         
         const { guildId, command } = req.body;
@@ -280,17 +296,21 @@ app.post('/api/save-command', authenticateUser, verifyGuildAccess, [
         await redis.hset('commands:' + guildId, command.id, JSON.stringify(command));
         res.json({ success: true, message: 'Command saved', id: command.id });
     } catch (e) {
-        console.error('Save command error:', e.message);
+        console.error('❌ Save command error:', e.message);
         res.status(500).json({ error: 'Failed to save command' });
     }
 });
 
 app.delete('/api/command/:guildId/:cmdId', authenticateUser, verifyGuildAccess, async (req, res) => {
     try {
+        if (!redis) {
+            return res.status(500).json({ error: 'Redis not available' });
+        }
+        
         await redis.hdel('commands:' + req.params.guildId, req.params.cmdId);
         res.json({ success: true, message: 'Command deleted' });
     } catch (e) {
-        console.error('Delete command error:', e.message);
+        console.error('❌ Delete command error:', e.message);
         res.status(500).json({ error: 'Failed to delete command' });
     }
 });
@@ -298,10 +318,14 @@ app.delete('/api/command/:guildId/:cmdId', authenticateUser, verifyGuildAccess, 
 // Settings Management
 app.get('/api/settings/:guildId', authenticateUser, verifyGuildAccess, async (req, res) => {
     try {
+        if (!redis) {
+            return res.json({ prefix: '!' });
+        }
+        
         const prefix = await redis.get('prefix:' + req.params.guildId) || '!';
         res.json({ prefix });
     } catch (e) {
-        console.error('Settings fetch error:', e.message);
+        console.error('❌ Settings fetch error:', e.message);
         res.json({ prefix: '!' });
     }
 });
@@ -315,10 +339,14 @@ app.post('/api/settings/:guildId', authenticateUser, verifyGuildAccess, [
             return res.status(400).json({ errors: errors.array() });
         }
         
+        if (!redis) {
+            return res.status(500).json({ error: 'Redis not available' });
+        }
+        
         await redis.set('prefix:' + req.params.guildId, req.body.prefix);
         res.json({ success: true, message: 'Settings saved' });
     } catch (e) {
-        console.error('Settings save error:', e.message);
+        console.error('❌ Settings save error:', e.message);
         res.status(500).json({ error: 'Failed to save settings' });
     }
 });
@@ -326,6 +354,10 @@ app.post('/api/settings/:guildId', authenticateUser, verifyGuildAccess, [
 // Database Management
 app.get('/api/db/:guildId', authenticateUser, verifyGuildAccess, async (req, res) => {
     try {
+        if (!redis) {
+            return res.status(500).json({});
+        }
+        
         const entries = await redis.hgetall('db:' + req.params.guildId);
         const parsedEntries = {};
         
@@ -339,7 +371,7 @@ app.get('/api/db/:guildId', authenticateUser, verifyGuildAccess, async (req, res
         
         res.json(parsedEntries);
     } catch (e) {
-        console.error('DB fetch error:', e.message);
+        console.error('❌ DB fetch error:', e.message);
         res.status(500).json({});
     }
 });
@@ -354,20 +386,28 @@ app.post('/api/db/:guildId', authenticateUser, verifyGuildAccess, [
             return res.status(400).json({ errors: errors.array() });
         }
         
+        if (!redis) {
+            return res.status(500).json({ error: 'Redis not available' });
+        }
+        
         await redis.hset('db:' + req.params.guildId, req.body.key, JSON.stringify(req.body.value));
         res.json({ success: true, message: 'Entry saved' });
     } catch (e) {
-        console.error('DB save error:', e.message);
+        console.error('❌ DB save error:', e.message);
         res.status(500).json({ error: 'Failed to save entry' });
     }
 });
 
 app.delete('/api/db/:guildId/:key', authenticateUser, verifyGuildAccess, async (req, res) => {
     try {
+        if (!redis) {
+            return res.status(500).json({ error: 'Redis not available' });
+        }
+        
         await redis.hdel('db:' + req.params.guildId, req.params.key);
         res.json({ success: true, message: 'Entry deleted' });
     } catch (e) {
-        console.error('DB delete error:', e.message);
+        console.error('❌ DB delete error:', e.message);
         res.status(500).json({ error: 'Failed to delete entry' });
     }
 });
@@ -376,7 +416,17 @@ app.delete('/api/db/:guildId/:key', authenticateUser, verifyGuildAccess, async (
 app.get('/api/status', async (req, res) => {
     try {
         const botStatus = client.readyAt ? '🟢 Online' : '🔴 Offline';
-        const redisStatus = await redis.ping() === 'PONG' ? '🟢 Connected' : '🔴 Disconnected';
+        let redisStatus = '🔴 Disconnected';
+        
+        if (redis) {
+            try {
+                const ping = await redis.ping();
+                redisStatus = ping === 'PONG' ? '🟢 Connected' : '🔴 Disconnected';
+            } catch (e) {
+                redisStatus = '🔴 Error';
+            }
+        }
+        
         const uptime = process.uptime();
         
         res.json({
@@ -388,7 +438,7 @@ app.get('/api/status', async (req, res) => {
             memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB'
         });
     } catch (e) {
-        console.error('Status check error:', e.message);
+        console.error('❌ Status check error:', e.message);
         res.json({
             bot: '🔴 Offline',
             redis: '🔴 Disconnected',
@@ -468,7 +518,7 @@ app.post('/api/test-command', authenticateUser, [
             }
         }
     } catch (e) {
-        console.error('Test command error:', e.message);
+        console.error('❌ Test command error:', e.message);
         res.status(500).json({ output: 'Server Error' });
     }
 });
@@ -481,7 +531,13 @@ client.on('messageCreate', async (message) => {
         const guildId = message.guild?.id;
         if (!guildId) return;
         
-        const prefix = await redis.get('prefix:' + guildId) || '!';
+        let prefix = '!';
+        if (redis) {
+            prefix = await redis.get('prefix:' + guildId) || '!';
+        }
+        
+        if (!redis) return;
+        
         const commands = await redis.hgetall('commands:' + guildId);
         
         for (const cmdData of Object.values(commands)) {
@@ -536,8 +592,8 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// Discord Bot Events
-client.once('ready', () => {
+// Discord Bot Events - FIXED: Using clientReady instead of ready
+client.once('clientReady', () => {
     console.log('✅ Bot logged in as ' + client.user.tag);
     console.log('📊 Serving ' + client.guilds.cache.size + ' guilds');
 });
@@ -547,24 +603,14 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log('🌐 Dashboard running on port ' + PORT);
     console.log('🔗 Bot starting...');
-});
-
-// Login bot
-client.login(TOKEN).catch(error => {
-    console.error('❌ Bot login failed:', error);
-    process.exit(1);
+    
+    // Start bot login
+    client.login(TOKEN).then(() => {
+        console.log('🤖 Bot login initiated');
+    }).catch(error => {
+        console.error('❌ Bot login failed:', error);
+    });
 });
 
 // Error handling
-app.use((err, req, res, next) => {
-    console.error('❌ Server error:', err);
-    errorLog.push('Server error: ' + err.message);
-    res.status(500).json({ error: 'Internal server error' });
-});
-
-// 404 handler
-app.use((req, res) => {
-    res.status(404).json({ error: 'Route not found' });
-});
-
-console.log('✅ Server starting...');
+app.use((err, req, res
