@@ -1,10 +1,6 @@
-module.exports = {
-    // These read from the Railway "Variables" tab
-    TOKEN: process.env.TOKEN,
-    CLIENT_ID: process.env.CLIENT_ID,
-    CLIENT_SECRET: process.env.CLIENT_SECRET,
-    
-    // YOUR PRODUCTION URL
-    // Ensure this matches the Discord Developer Portal Redirect exactly
-    REDIRECT_URI: "https://official-sssyntax-website-production.up.railway.app/callback.html" 
-};
+const urlParams = new URLSearchParams(window.location.search);
+const token = urlParams.get('token');
+if (token) {
+    localStorage.setItem('discord_token', token);
+    window.history.replaceState({}, '', '/');  // Clean up URL
+}
