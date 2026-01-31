@@ -484,41 +484,35 @@ app.delete('/api/db/:guildId/:key', authenticateUser, verifyGuildAccess, async (
     }
 });
 
-// System Status
-app.get('/api/status', async (req, res) => {
+// Webhooks Management
+app.get('/api/webhooks/:guildId', authenticateUser, verifyGuildAccess, async (req, res) => {
     try {
-        const botStatus = client.readyAt ? '🟢 Online' : '🔴 Offline';
-        const redisStatus = await redis.ping() === 'PONG' ? '🟢 Connected' : '🔴 Disconnected';
-        const uptime = process.uptime();
+        const webhooks = await redis.hgetall(`webhooks:${req.params.guildId}`);
+        const parsedWebhooks = {};
         
-        res.json({
-            bot: botStatus,
-            redis: redisStatus,
-            uptime: Math.floor(uptime / 60) + ' minutes',
-            guilds: client.guilds.cache.size,
-            errors: errorLog.slice(-10),
-            memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB'
-        });
+        for (const [key, value] of Object.entries(webhooks)) {
+            try {
+                parsedWebhooks[key] = JSON.parse(value);
+            } catch {
+                parsedWebhooks[key] = value;
+            }
+        }
+        
+        res.json(parsedWebhooks);
     } catch (e) {
-        console.error('Status check error:', e.message);
-        res.status(500).json({
-            bot: '🔴 Offline',
-            redis: '🔴 Disconnected',
-            uptime: '0 minutes',
-            guilds: 0,
-            errors: errorLog.slice(-10),
-            memory: '0 MB'
-        });
+        console.error('Webhooks fetch error:', e.message);
+        res.status(500).json({});
     }
 });
 
-// Command Testing
-app.post('/api/test-command', 
+app.post('/api/webhooks/:guildId', 
     authenticateUser,
+    verifyGuildAccess,
     [
-        body('code').isString().trim().isLength({ max: 5000 }),
-        body('lang').isIn(['JavaScript', 'Python', 'Go']),
-        body('guildId').optional().isString()
+        body('name').isString().trim().isLength({ min: 1, max: 100 }),
+        body('url').isURL(),
+        body('events').isArray(),
+        body('secret').optional().isString().trim()
     ],
     async (req, res) => {
         try {
@@ -527,75 +521,83 @@ app.post('/api/test-command',
                 return res.status(400).json({ errors: errors.array() });
             }
             
-            const { code, lang } = req.body;
-            let output = '';
+            const { name, url, events, secret } = req.body;
+            const webhookId = crypto.randomUUID();
             
-            if (lang === 'JavaScript') {
-                const vm = new NodeVM({
-                    timeout: 3000,
-                    sandbox: {
-                        console: { 
-                            log: (msg) => { output += msg + '\n'; } 
-                        },
-                        message: { 
-                            reply: (text) => { output += `Reply: ${text}\n`; }
-                        }
-                    },
-                    require: { 
-                        external: false, 
-                        builtin: ['*'] 
-                    }
-                });
-                
-                try {
-                    vm.run(code);
-                    res.json({ output: output || 'No output' });
-                } catch (e) {
-                    res.json({ output: `JavaScript Error: ${e.message}` });
-                }
-            } else if (lang === 'Python') {
-                const tempFile = path.join(__dirname, `temp_${crypto.randomUUID()}.py`);
-                
-                try {
-                    fs.writeFileSync(tempFile, code);
-                    
-                    exec(`timeout 5 python3 "${tempFile}"`, (error, stdout, stderr) => {
-                        output = stdout || stderr || 'No output';
-                        cleanupTempFile(tempFile);
-                        res.json({ output });
-                    });
-                } catch (e) {
-                    cleanupTempFile(tempFile);
-                    res.json({ output: `Python Error: ${e.message}` });
-                }
-            } else if (lang === 'Go') {
-                const tempFile = path.join(__dirname, `temp_${crypto.randomUUID()}.go`);
-                
-                try {
-                    fs.writeFileSync(tempFile, code);
-                    
-                    exec(`timeout 5 go run "${tempFile}"`, (error, stdout, stderr) => {
-                        output = stdout || stderr || 'No output';
-                        cleanupTempFile(tempFile);
-                        res.json({ output });
-                    });
-                } catch (e) {
-                    cleanupTempFile(tempFile);
-                    res.json({ output: `Go Error: ${e.message}` });
-                }
-            }
+            const webhookData = {
+                id: webhookId,
+                name,
+                url,
+                events,
+                secret: secret || crypto.randomBytes(16).toString('hex'),
+                createdAt: new Date().toISOString(),
+                createdBy: req.user.id
+            };
+            
+            await redis.hset(`webhooks:${req.params.guildId}`, webhookId, JSON.stringify(webhookData));
+            res.json({ success: true, message: 'Webhook created successfully', id: webhookId });
         } catch (e) {
-            console.error('Test command error:', e.message);
-            errorLog.push(`Test command error: ${e.message}`);
-            res.status(500).json({ output: `Server Error: ${e.message}` });
+            console.error('Webhook create error:', e.message);
+            errorLog.push(`Webhook create error: ${e.message}`);
+            res.status(500).json({ error: 'Failed to create webhook' });
         }
     }
 );
 
-// Webhooks Management
-app.get('/api/webhooks/:guildId', authenticateUser, verifyGuildAccess, async (req, res) => {
+app.put('/api/webhooks/:guildId/:webhookId', 
+    authenticateUser,
+    verifyGuildAccess,
+    [
+        body('name').optional().isString().trim().isLength({ min: 1, max: 100 }),
+        body('url').optional().isURL(),
+        body('events').optional().isArray(),
+        body('secret').optional().isString().trim()
+    ],
+    async (req, res) => {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
+            }
+            
+            const existing = await redis.hget(`webhooks:${req.params.guildId}`, req.params.webhookId);
+            if (!existing) {
+                return res.status(404).json({ error: 'Webhook not found' });
+            }
+            
+            const webhookData = JSON.parse(existing);
+            const updates = req.body;
+            
+            // Update fields
+            Object.keys(updates).forEach(key => {
+                if (updates[key] !== undefined) {
+                    webhookData[key] = updates[key];
+                }
+            });
+            
+            webhookData.updatedAt = new Date().toISOString();
+            
+            await redis.hset(`webhooks:${req.params.guildId}`, req.params.webhookId, JSON.stringify(webhookData));
+            res.json({ success: true, message: 'Webhook updated successfully' });
+        } catch (e) {
+            console.error('Webhook update error:', e.message);
+            errorLog.push(`Webhook update error: ${e.message}`);
+            res.status(500).json({ error: 'Failed to update webhook' });
+        }
+    }
+);
+
+app.delete('/api/webhooks/:guildId/:webhookId', authenticateUser, verifyGuildAccess, async (req, res) => {
     try {
-        const webhooks = await redis.hgetall(`webhooks:${req.params.guildId}`);
-        const parsedWebhooks = {};
-        
-        for (const [key, value] o
+        await redis.hdel(`webhooks:${req.params.guildId}`, req.params.webhookId);
+        res.json({ success: true, message: 'Webhook deleted successfully' });
+    } catch (e) {
+        console.error('Webhook delete error:', e.message);
+        errorLog.push(`Webhook delete error: ${e.message}`);
+        res.status(500).json({ error: 'Failed to delete webhook' });
+    }
+});
+
+// Webhook Test Endpoint
+app.post('/api/webhooks/:guildId/:webhookId/test', 
+    authenticateUse
