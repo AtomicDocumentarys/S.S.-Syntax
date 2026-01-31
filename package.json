@@ -16,6 +16,6 @@
     "cors": "^2.8.5"
   },
   "engines": {
-    "node": "18.x"  // Or match your Railway Node version (e.g., 22.x if supported)
+    "node": "18.x"
   }
 }
