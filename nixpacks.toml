@@ -1,8 +1,0 @@
-[phases.setup]
-nixPkgs = ['nodejs', 'python3', 'go']
-
-[phases.build]
-cmds = ['npm install']
-
-[start]
-cmd = 'node bot.js'
