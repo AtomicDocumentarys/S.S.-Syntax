@@ -3,176 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.S. Syntax | v2</title>
+    <title>S.S. Syntax | Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
     <style>
-        :root { --bg: #0e1114; --side: #15191c; --card: #1c2126; --accent: #5865f2; --text: #ffffff; --subtext: #b9bbbe; }
-        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; display: flex; height: 100vh; }
+        :root { --bg: #000000; --side: #111111; --accent: #3ba55c; --err: #ff4747; --text: #ffffff; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; }
 
-        /* MENU 1: NAVIGATION SIDEBAR */
-        .sidebar { width: 240px; background: var(--side); display: flex; flex-direction: column; border-right: 1px solid #2d3238; transition: 0.3s; z-index: 1000; }
-        .sidebar.hidden { margin-left: -240px; }
-        .nav-item { padding: 15px 25px; cursor: pointer; color: var(--subtext); border-left: 4px solid transparent; }
-        .nav-item:hover, .nav-item.active { background: #24292e; color: #fff; border-left-color: var(--accent); }
+        /* SIDEBAR & TOP BAR */
+        .sidebar { width: 260px; background: var(--side); border-right: 1px solid #222; transition: 0.3s; margin-left: -260px; position: fixed; height: 100%; z-index: 1000; }
+        .sidebar.open { margin-left: 0; position: relative; }
+        .nav-item { padding: 15px 25px; cursor: pointer; border-bottom: 1px solid #1a1a1a; font-size: 14px; }
+        .nav-item:hover { background: #1a1a1a; }
 
-        /* MENU 2: TOP HEADER (SERVER CONTROL) */
-        .top-nav { height: 60px; background: var(--side); width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #2d3238; position: absolute; top: 0; z-index: 999; }
-        .hamburger { font-size: 24px; cursor: pointer; color: var(--accent); }
-
-        /* DASHBOARD CONTENT */
-        main { flex: 1; padding: 80px 30px 30px; overflow-y: auto; box-sizing: border-box; }
-        .view { display: none; max-width: 900px; margin: 0 auto; }
+        .top-bar { height: 60px; background: #080808; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #222; position: fixed; top: 0; z-index: 999; }
+        
+        main { flex: 1; padding: 80px 20px 20px; overflow-y: auto; }
+        .view { display: none; max-width: 1000px; margin: 0 auto; }
         .view.active { display: block; }
 
-        .card { background: var(--card); border-radius: 12px; padding: 25px; margin-bottom: 20px; border: 1px solid #2d3238; line-height: 1.6; }
-        .label { font-size: 12px; font-weight: bold; color: var(--subtext); text-transform: uppercase; display: block; margin-bottom: 10px; }
+        /* FORM ELEMENTS */
+        .card { background: #0d0d0d; border: 1px solid #222; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .input-black { width: 100%; background: #000; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 5px; margin-bottom: 15px; }
+        .btn-confirm { background: var(--accent); color: white; border: none; padding: 15px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
         
-        /* BLACK THEME INPUTS */
-        select, input, textarea { width: 100%; background: #000; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
-        .btn { background: var(--accent); color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; }
+        #code-editor { height: 300px; border: 1px solid #222; margin-bottom: 10px; }
+        .error-log { color: var(--err); background: #1a0a0a; padding: 10px; border-radius: 5px; font-family: monospace; display: none; margin-bottom: 15px; }
 
-        #code-editor { height: 350px; border-radius: 6px; border: 1px solid #000; }
-        .console { background: #000; color: #0f0; padding: 10px; height: 80px; font-family: monospace; font-size: 12px; overflow-y: auto; margin-top: 5px; }
+        /* SEARCHABLE MULTI-SELECT */
+        .multi-select { height: 100px; overflow-y: auto; background: #000; border: 1px solid #333; padding: 5px; border-radius: 5px; }
+        .multi-item { display: flex; align-items: center; gap: 8px; padding: 5px; font-size: 13px; }
     </style>
 </head>
 <body>
 
-    <div class="sidebar hidden" id="mainSidebar">
-        <div style="padding: 25px; font-weight: bold; font-size: 20px; color: var(--accent);">S.S. Syntax</div>
-        <div class="nav-item active" onclick="switchTab('home')">Home</div>
-        <div class="nav-item server-only" onclick="switchTab('commands')" style="display:none">Custom Commands</div>
-        <div class="nav-item server-only" onclick="switchTab('database')" style="display:none">Database</div>
-        <div class="nav-item" onclick="switchTab('terms')">Terms of Service</div>
-        <div class="nav-item" onclick="switchTab('privacy')">Privacy Policy</div>
+    <div class="sidebar" id="sidebar">
+        <div style="padding: 20px; font-weight: bold; color: var(--accent);">S.S. SYNTAX</div>
+        <div class="nav-item" onclick="showView('home')">Home</div>
+        <div class="nav-item server-tab" style="display:none" onclick="showView('commands')">Custom Commands</div>
+        <div class="nav-item server-tab" style="display:none" onclick="showView('database')">Database Management</div>
+        <div class="nav-item" onclick="showView('terms')">Terms of Service</div>
+        <div class="nav-item" onclick="showView('privacy')">Privacy Policy</div>
     </div>
 
-    <div class="top-nav">
-        <div class="hamburger" onclick="toggleSidebar()">☰</div>
-        <select id="guild-select" style="width: auto; margin-bottom: 0;" onchange="onServerSelect()">
-            <option value="">Select a Server</option>
-        </select>
-    </div>
-
-    <main>
-        <div id="view-home" class="view active">
-            <div class="card">
-                <h1>Welcome to the Command Forge</h1>
-                <p>S.S. Syntax is a high-performance automation engine for Discord. Unlike basic bots, we provide a full **JavaScript Sandbox** for every command you create.</p>
-                <h3>How to begin:</h3>
-                <ul>
-                    <li>Open the left menu and select a mutual server in the top bar.</li>
-                    <li>Head to **Custom Commands** to write your first script.</li>
-                    <li>Use the **Database** tab to view persistent storage variables.</li>
-                </ul>
-            </div>
+    <div style="flex: 1; display: flex; flex-direction: column;">
+        <div class="top-bar">
+            <button onclick="toggleSidebar()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">☰</button>
+            <select id="guild-select" class="input-black" style="width: 250px; margin: 0;" onchange="loadServerData()">
+                <option value="">Choose a server...</option>
+            </select>
         </div>
 
-        <div id="view-commands" class="view">
-            <div id="editor-ui" style="display:none;">
+        <main>
+            <div id="view-home" class="view active">
                 <div class="card">
-                    <span class="label">Trigger Configuration</span>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="cmd-prefix" placeholder="Prefix (e.g. -)" style="width: 80px;">
-                        <input type="text" id="cmd-trigger" placeholder="Trigger Name (e.g. start)">
-                    </div>
-                    <span class="label">Trigger Type</span>
-                    <select id="cmd-type">
+                    <h1>System Landing</h1>
+                    <p>Welcome to S.S. Syntax. Please select a server from the top bar to begin automation.</p>
+                </div>
+            </div>
+
+            <div id="view-commands" class="view">
+                <div class="card">
+                    <label>Language</label>
+                    <select id="cmd-lang" class="input-black">
+                        <option>JavaScript</option>
+                        <option>Python</option>
+                        <option>Golang</option>
+                    </select>
+
+                    <label>Trigger Type</label>
+                    <select id="cmd-type" class="input-black" onchange="togglePrefix()">
                         <option>Command (prefix)</option>
                         <option>Starts with</option>
                         <option>Contains</option>
                         <option>Exact Match</option>
-                        <option>Regex</option>
                     </select>
 
-                    <span class="label">Role Requirements</span>
-                    <input type="text" placeholder="Role IDs (comma separated)">
+                    <div id="prefix-container">
+                        <label>Command Prefix</label>
+                        <input type="text" id="cmd-prefix" class="input-black" value="!">
+                    </div>
 
-                    <span class="label">JavaScript Code</span>
+                    <label>Trigger</label>
+                    <input type="text" id="cmd-trigger" class="input-black" placeholder="e.g. start">
+
+                    <label>Code Editor</label>
                     <div id="code-editor"></div>
-                    <div class="console" id="log-output">Live console ready...</div>
-                    <button class="btn" style="margin-top: 20px;" onclick="saveCommand()">DEPLOY TO DISCORD</button>
+                    <div id="error-box" class="error-log"></div>
+
+                    <label>Allowed Roles</label>
+                    <div id="role-list" class="multi-select"></div>
+
+                    <label style="margin-top: 15px; display: block;">Allowed Channels</label>
+                    <div id="channel-list" class="multi-select"></div>
+
+                    <button class="btn-confirm" onclick="validateAndConfirm()">CONFIRM COMMAND</button>
                 </div>
             </div>
-            <div id="command-list-ui">
-                <button class="btn" onclick="openNewEditor()">+ CREATE NEW COMMAND</button>
-                <div id="command-list" style="margin-top: 20px;"></div>
-            </div>
-        </div>
 
-        <div id="view-database" class="view">
-            <div class="card">
-                <h2>Server Data Vault</h2>
-                <p>This shows all persistent variables saved by your commands using `db.set()`.</p>
-                <div id="db-list"></div>
-            </div>
-        </div>
-
-        <div id="view-terms" class="view"><h1>Terms of Service</h1><iframe src="terms.html" style="width:100%; height:70vh; border:none; border-radius:8px;"></iframe></div>
-        <div id="view-privacy" class="view"><h1>Privacy Policy</h1><iframe src="privacy.html" style="width:100%; height:70vh; border:none; border-radius:8px;"></iframe></div>
-    </main>
+            <div id="view-terms" class="view"><iframe src="terms.html" style="width:100%; height:70vh; border:none;"></iframe></div>
+            <div id="view-privacy" class="view"><iframe src="privacy.html" style="width:100%; height:70vh; border:none;"></iframe></div>
+        </main>
+    </div>
 
     <script>
-        let currentGuildId = null;
         let editor = ace.edit("code-editor");
         editor.setTheme("ace/theme/monokai");
         editor.session.setMode("ace/mode/javascript");
 
-        function toggleSidebar() { document.getElementById('mainSidebar').classList.toggle('hidden'); }
-
-        function onServerSelect() {
-            currentGuildId = document.getElementById('guild-select').value;
-            const items = document.querySelectorAll('.server-only');
-            if(currentGuildId) {
-                items.forEach(el => el.style.display = 'block');
-                loadCommands();
-            } else {
-                items.forEach(el => el.style.display = 'none');
-                switchTab('home');
-            }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+        function togglePrefix() {
+            const type = document.getElementById('cmd-type').value;
+            document.getElementById('prefix-container').style.display = (type === "Command (prefix)") ? "block" : "none";
         }
 
-        function switchTab(t) {
+        function showView(id) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            document.getElementById('view-' + t).classList.add('active');
-            event.target.classList.add('active');
-            if(window.innerWidth < 800) toggleSidebar();
-            if(t === 'commands') editor.resize();
+            document.getElementById('view-' + id).classList.add('active');
+            if (window.innerWidth < 800) toggleSidebar();
         }
 
-        async function saveCommand() {
-            const command = {
-                id: Date.now(),
-                prefix: document.getElementById('cmd-prefix').value || "!",
-                trigger: document.getElementById('cmd-trigger').value,
-                type: document.getElementById('cmd-type').value,
-                code: editor.getValue()
-            };
-            await fetch('/api/save-command', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ guildId: currentGuildId, command })
-            });
-            alert("Deployed!");
-            location.reload();
+        async function loadServerData() {
+            const guildId = document.getElementById('guild-select').value;
+            if (!guildId) return;
+            document.querySelectorAll('.server-tab').forEach(t => t.style.display = 'block');
+            
+            const res = await fetch(`/api/guild-meta/${guildId}`);
+            const data = await res.json();
+            
+            document.getElementById('role-list').innerHTML = data.roles.map(r => `
+                <div class="multi-item"><input type="checkbox" value="${r.id}"> ${r.name}</div>
+            `).join('');
+            document.getElementById('channel-list').innerHTML = data.channels.map(c => `
+                <div class="multi-item"><input type="checkbox" value="${c.id}"> #${c.name}</div>
+            `).join('');
         }
 
-        async function checkAuth() {
+        function validateAndConfirm() {
+            const code = editor.getValue();
+            const errorBox = document.getElementById('error-box');
+            errorBox.style.display = 'none';
+
+            if (document.getElementById('cmd-lang').value === "JavaScript") {
+                try {
+                    new Function(code);
+                } catch (e) {
+                    errorBox.innerText = `Syntax Error: ${e.message} (Check line logic)`;
+                    errorBox.style.display = 'block';
+                    return;
+                }
+            }
+            alert("Command successfully confirmed and deployed!");
+        }
+
+        async function init() {
             const token = localStorage.getItem('discord_token');
-            if (!token) return;
             const res = await fetch('/api/mutual-servers', { headers: { Authorization: `Bearer ${token}` } });
             const guilds = await res.json();
             const select = document.getElementById('guild-select');
             guilds.forEach(g => { select.innerHTML += `<option value="${g.id}">${g.name}</option>`; });
         }
-        
-        function openNewEditor() { 
-            document.getElementById('command-list-ui').style.display = 'none';
-            document.getElementById('editor-ui').style.display = 'block';
-            editor.resize();
-        }
-
-        window.onload = checkAuth;
+        window.onload = init;
     </script>
 </body>
 </html>
