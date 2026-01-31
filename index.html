@@ -3,255 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.S. Syntax | Dashboard</title>
-    
+    <title>S.S. Syntax | Unified Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
-    
     <style>
-        :root { 
-            --bg: #000000; 
-            --side: #0a0a0a; 
-            --card: #0d0d0d; 
-            --accent: #3ba55c; 
-            --err: #ff4747; 
-            --text: #ffffff; 
-            --border: #222222; 
-        }
+        :root { --bg: #000; --side: #0a0a0a; --card: #0d0d0d; --accent: #3ba55c; --err: #ff4747; --text: #fff; --border: #222; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        body { 
-            background: var(--bg); 
-            color: var(--text); 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            display: flex; 
-            height: 100vh; 
-            overflow: hidden; 
-        }
-
-        /* SIDEBAR */
-        .sidebar { 
-            width: 260px; 
-            background: var(--side); 
-            border-right: 1px solid var(--border); 
-            display: flex; 
-            flex-direction: column; 
-            transition: 0.3s;
-        }
-
-        .nav-item { 
-            padding: 18px 25px; 
-            cursor: pointer; 
-            color: #888; 
-            transition: 0.2s; 
-            border-left: 4px solid transparent;
-        }
+        /* Layout */
+        .sidebar { width: 260px; background: var(--side); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .main-container { flex: 1; display: flex; flex-direction: column; }
+        .top-bar { height: 60px; background: #050505; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
+        main { flex: 1; padding: 30px; overflow-y: auto; }
         
-        .nav-item:hover, .nav-item.active { 
-            background: #111; 
-            color: #fff; 
-            border-left-color: var(--accent); 
-        }
-
-        /* CONTENT AREA */
-        .main-wrapper { 
-            flex: 1; 
-            display: flex; 
-            flex-direction: column; 
-            height: 100%;
-        }
-
-        .top-nav { 
-            height: 60px; 
-            background: #050505; 
-            border-bottom: 1px solid var(--border); 
-            display: flex; 
-            align-items: center; 
-            padding: 0 20px; 
-            justify-content: space-between;
-        }
-
-        main { 
-            flex: 1; 
-            padding: 30px; 
-            overflow-y: auto; 
-            box-sizing: border-box; 
-        }
-
+        /* Elements */
+        .nav-item { padding: 18px 25px; cursor: pointer; color: #888; border-left: 4px solid transparent; }
+        .nav-item.active { background: #111; color: #fff; border-left-color: var(--accent); }
+        .card { background: var(--card); border: 1px solid var(--border); padding: 25px; border-radius: 8px; margin-bottom: 20px; }
         .view { display: none; max-width: 900px; margin: 0 auto; }
         .view.active { display: block; }
-
-        /* CARDS & INPUTS */
-        .card { 
-            background: var(--card); 
-            border: 1px solid var(--border); 
-            padding: 25px; 
-            border-radius: 8px; 
-            margin-bottom: 20px; 
-        }
-
-        .label { 
-            display: block; 
-            font-size: 11px; 
-            font-weight: bold; 
-            color: #666; 
-            text-transform: uppercase; 
-            margin-bottom: 8px; 
-        }
-
-        .input-black { 
-            width: 100%; 
-            background: #000; 
-            border: 1px solid #333; 
-            color: #fff; 
-            padding: 12px; 
-            border-radius: 4px; 
-            margin-bottom: 20px; 
-            box-sizing: border-box;
-            outline: none;
-        }
-
-        .input-black:focus { border-color: var(--accent); }
-
-        /* EDITOR & CONSOLE */
-        #code-editor { 
-            height: 300px; 
-            border: 1px solid #222; 
-            border-radius: 4px; 
-            margin-bottom: 10px; 
-        }
-
-        .console-box { 
-            background: #050505; 
-            border: 1px solid #222; 
-            color: #0f0; 
-            padding: 15px; 
-            font-family: monospace; 
-            font-size: 13px; 
-            border-radius: 4px; 
-            margin-bottom: 20px;
-            max-height: 150px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
-
-        .btn-confirm { 
-            background: var(--accent); 
-            color: white; 
-            border: none; 
-            padding: 15px; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            width: 100%; 
-            font-weight: bold; 
-            font-size: 14px;
-        }
-
-        .btn-toggle { 
-            background: #222; 
-            color: #fff; 
-            border: 1px solid #333; 
-            padding: 8px 12px; 
-            margin-bottom: 10px; 
-            cursor: pointer; 
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
-        .multi-select { 
-            height: 120px; 
-            overflow-y: auto; 
-            background: #000; 
-            border: 1px solid #222; 
-            padding: 10px; 
-            border-radius: 4px; 
-            margin-bottom: 20px; 
-        }
-
-        .select-item { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+        
+        .input-black { width: 100%; background: #000; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 4px; margin-bottom: 20px; box-sizing: border-box; }
+        .label { display: block; font-size: 11px; color: #666; text-transform: uppercase; margin-bottom: 8px; font-weight: bold; }
+        
+        #code-editor { height: 320px; border: 1px solid #222; border-radius: 4px; margin-bottom: 10px; }
+        .console-box { background: #050505; border: 1px solid #222; color: #0f0; padding: 15px; font-family: monospace; font-size: 13px; border-radius: 4px; margin-bottom: 20px; white-space: pre-wrap; display: none; }
+        
+        .multi-select { height: 130px; overflow-y: auto; background: #000; border: 1px solid #222; padding: 10px; border-radius: 4px; margin-bottom: 20px; }
+        .btn-confirm { background: var(--accent); color: white; border: none; padding: 16px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; }
+        .btn-toggle { background: #222; color: #fff; border: 1px solid #333; padding: 8px; cursor: pointer; border-radius: 4px; font-size: 11px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
         <div style="padding: 25px; font-weight: bold; font-size: 20px; color: var(--accent);">S.S. SYNTAX</div>
-        <div class="nav-item active" onclick="switchTab('home')">Home</div>
-        <div class="nav-item server-only" style="display:none" onclick="switchTab('commands')">Custom Commands</div>
-        <div class="nav-item server-only" style="display:none" onclick="switchTab('database')">Database Management</div>
-        <div class="nav-item" onclick="switchTab('terms')">Terms of Service</div>
-        <div class="nav-item" onclick="switchTab('privacy')">Privacy Policy</div>
+        <div class="nav-item active" onclick="tab('home')">Home</div>
+        <div class="nav-item s-only" style="display:none" onclick="tab('commands')">Custom Commands</div>
+        <div class="nav-item s-only" style="display:none" onclick="tab('database')">Database</div>
+        <div class="nav-item" onclick="tab('terms')">Terms of Service</div>
+        <div class="nav-item" onclick="tab('privacy')">Privacy Policy</div>
     </div>
 
-    <div class="main-wrapper">
-        <div class="top-nav">
-            <span id="server-status" style="font-size: 13px; color: #555;">No Server Selected</span>
-            <select id="guild-select" class="input-black" style="width: 250px; margin: 0;" onchange="onServerChange()">
+    <div class="main-container">
+        <div class="top-bar">
+            <span id="s-label" style="color:#555">Disconnected</span>
+            <select id="guild-select" class="input-black" style="width:250px; margin:0;" onchange="loadServer()">
                 <option value="">Choose a Server</option>
             </select>
         </div>
 
         <main>
-            <div id="view-home" class="view active">
+            <div id="v-home" class="view active">
                 <div class="card">
-                    <h1>Welcome to S.S. Syntax</h1>
-                    <p>S.S. Syntax is your unified hub for high-performance Discord automation. By using localized runtimes for JavaScript, Python, and Golang, we offer the flexibility of advanced coding without the overhead of hosting your own bot.</p>
-                    <p>Select a server from the top menu to access your custom command engine and database.</p>
+                    <h1>Control Center</h1>
+                    <p>Select a server to begin coding your automation scripts.</p>
                 </div>
             </div>
 
-            <div id="view-commands" class="view">
+            <div id="v-commands" class="view">
                 <div class="card">
-                    <label class="label">Programming Language</label>
-                    <select id="cmd-lang" class="input-black" onchange="updateEditorMode()">
+                    <label class="label">Runtime</label>
+                    <select id="c-lang" class="input-black" onchange="upEditor()">
                         <option value="javascript">JavaScript</option>
                         <option value="python">Python</option>
                         <option value="golang">Golang</option>
                     </select>
 
-                    <label class="label">Trigger Logic</label>
-                    <select id="cmd-type" class="input-black" onchange="togglePrefixUI()">
+                    <label class="label">Trigger</label>
+                    <select id="c-type" class="input-black" onchange="upPrefix()">
                         <option>Command (prefix)</option>
                         <option>Starts with</option>
                         <option>Contains</option>
-                        <option>Exact Match</option>
-                        <option>Regex (Global)</option>
                         <option>Regex (Case Insensitive)</option>
                     </select>
 
-                    <div id="prefix-container">
-                        <label class="label">Command Prefix</label>
-                        <input type="text" id="cmd-prefix" class="input-black" value="!">
+                    <div id="pref-box">
+                        <label class="label">Prefix</label>
+                        <input type="text" id="c-pref" class="input-black" value="!">
                     </div>
 
-                    <label class="label">Trigger Trigger / Pattern</label>
-                    <input type="text" id="cmd-trigger" class="input-black" placeholder="e.g. start">
+                    <label class="label">Trigger Pattern</label>
+                    <input type="text" id="c-trig" class="input-black" placeholder="e.g. test">
 
-                    <label class="label">Source Code</label>
+                    <label class="label">Code</label>
                     <div id="code-editor"></div>
 
-                    <button class="btn-toggle" onclick="toggleConsole()">Toggle Console Log</button>
-                    <div id="console-output" class="console-box" style="display:none;"></div>
+                    <button class="btn-toggle" onclick="togCon()">Toggle Console Log</button>
+                    <div id="con-out" class="console-box"></div>
 
-                    <label class="label">Role Requirements</label>
-                    <div id="role-list" class="multi-select"></div>
+                    <label class="label">Roles</label>
+                    <input type="text" class="input-black" placeholder="Search..." onkeyup="search('r-list', this.value)">
+                    <div id="r-list" class="multi-select"></div>
 
-                    <label class="label">Channel Requirements</label>
-                    <div id="channel-list" class="multi-select"></div>
+                    <label class="label">Channels</label>
+                    <input type="text" class="input-black" placeholder="Search..." onkeyup="search('ch-list', this.value)">
+                    <div id="ch-list" class="multi-select"></div>
 
-                    <button class="btn-confirm" onclick="saveCommand()">CONFIRM & DEPLOY COMMAND</button>
+                    <button class="btn-confirm" onclick="save()">CONFIRM & DEPLOY</button>
                 </div>
             </div>
 
-            <div id="view-terms" class="view">
+            <div id="v-terms" class="view">
                 <div class="card">
                     <h2>Terms of Service</h2>
-                    <p>By using S.S. Syntax, you agree to comply with Discord's Terms of Service. You are solely responsible for any code deployed through this dashboard. Malicious scripts, including those designed for raiding or scraping, will result in an immediate permanent ban from our services.</p>
+                    <p>By using this service, you agree not to use malicious code. You are responsible for all bot interactions.</p>
                 </div>
             </div>
 
-            <div id="view-privacy" class="view">
+            <div id="v-privacy" class="view">
                 <div class="card">
                     <h2>Privacy Policy</h2>
-                    <p>We respect your privacy. S.S. Syntax only collects data necessary for command execution, such as Server IDs and user-defined variables via <code>db.set</code>. We do not sell your data to third parties. All script data is stored securely and encrypted in our Redis cloud.</p>
+                    <p>We only store Server IDs and Command logic. We do not sell user data. Database is stored in Redis.</p>
                 </div>
             </div>
         </main>
@@ -261,63 +123,60 @@
         let editor = ace.edit("code-editor");
         editor.setTheme("ace/theme/monokai");
         editor.session.setMode("ace/mode/javascript");
-        let currentGuildId = null;
+        let gid = null;
 
-        function switchTab(tabId) {
+        function tab(n) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            document.getElementById('view-' + tabId).classList.add('active');
+            document.getElementById('v-' + n).classList.add('active');
             event.currentTarget.classList.add('active');
             editor.resize();
         }
 
-        function togglePrefixUI() {
-            const type = document.getElementById('cmd-type').value;
-            document.getElementById('prefix-container').style.display = (type === "Command (prefix)") ? "block" : "none";
+        function togCon() {
+            const c = document.getElementById('con-out');
+            c.style.display = c.style.display === 'block' ? 'none' : 'block';
         }
 
-        function updateEditorMode() {
-            const lang = document.getElementById('cmd-lang').value;
-            editor.session.setMode("ace/mode/" + lang);
+        function upEditor() { editor.session.setMode("ace/mode/" + document.getElementById('c-lang').value); }
+        function upPrefix() { document.getElementById('pref-box').style.display = (document.getElementById('c-type').value === "Command (prefix)") ? "block" : "none"; }
+        function search(id, q) {
+            const items = document.getElementById(id).children;
+            for(let i of items) i.style.display = i.innerText.toLowerCase().includes(q.toLowerCase()) ? 'flex' : 'none';
         }
 
-        function toggleConsole() {
-            const con = document.getElementById('console-output');
-            con.style.display = (con.style.display === 'none') ? 'block' : 'none';
+        async function loadServer() {
+            gid = document.getElementById('guild-select').value;
+            if(!gid) return;
+            document.querySelectorAll('.s-only').forEach(e => e.style.display = 'block');
+            document.getElementById('s-label').innerText = "Active: " + gid;
+            const res = await fetch('/api/guild-meta/' + gid);
+            const data = await res.json();
+            document.getElementById('r-list').innerHTML = data.roles.map(r => `<div class="select-item"><input type="checkbox" value="${r.id}"> ${r.name}</div>`).join('');
+            document.getElementById('ch-list').innerHTML = data.channels.map(c => `<div class="select-item"><input type="checkbox" value="${c.id}"> #${c.name}</div>`).join('');
         }
 
-        async function onServerChange() {
-            currentGuildId = document.getElementById('guild-select').value;
-            const items = document.querySelectorAll('.server-only');
-            if(currentGuildId) {
-                items.forEach(el => el.style.display = 'block');
-                document.getElementById('server-status').innerText = "Managing ID: " + currentGuildId;
-                // Add your fetch roles/channels logic here
-            } else {
-                items.forEach(el => el.style.display = 'none');
-                switchTab('home');
-            }
-        }
-
-        function saveCommand() {
+        function save() {
             const code = editor.getValue();
-            const lang = document.getElementById('cmd-lang').value;
-            const con = document.getElementById('console-output');
-            
-            // Syntax check for JS
+            const lang = document.getElementById('c-lang').value;
+            const con = document.getElementById('con-out');
             if(lang === 'javascript') {
-                try {
-                    new Function(code);
-                } catch(e) {
+                try { new Function(code); } catch(e) {
                     con.style.display = 'block';
-                    con.innerText = "Error on Line: " + e.lineNumber + "\n" + e.message;
+                    con.innerText = "Syntax Error: " + e.message;
                     return;
                 }
             }
-            
-            alert("Command confirmed! Deploying to Discord...");
-            // Add fetch /api/save-command here
+            alert("Command Deployed!");
         }
+
+        async function init() {
+            const t = localStorage.getItem('discord_token');
+            const res = await fetch('/api/mutual-servers', { headers: { Authorization: `Bearer ${t}` } });
+            const guilds = await res.json();
+            guilds.forEach(g => { document.getElementById('guild-select').innerHTML += `<option value="${g.id}">${g.name}</option>`; });
+        }
+        window.onload = init;
     </script>
 </body>
     </html>
