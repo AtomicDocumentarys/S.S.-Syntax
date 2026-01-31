@@ -3,176 +3,244 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.S. Syntax | Dashboard</title>
+    <title>S.S. Syntax | Pro Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root { --bg: #1e2124; --side: #2e3136; --main: #36393e; --blurple: #5865f2; --success: #3ba55c; --danger: #ed4245; }
-        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; display: flex; }
-        .sidebar { width: 260px; background: var(--side); height: 100vh; padding: 20px; box-sizing: border-box; overflow-y: auto; }
-        .content { flex-grow: 1; padding: 40px; box-sizing: border-box; }
-        .card { background: var(--main); border-radius: 8px; padding: 20px; margin-bottom: 20px; border-left: 5px solid var(--blurple); }
-        .cmd-item { display: flex; justify-content: space-between; align-items: center; background: #2f3136; padding: 15px; margin-bottom: 10px; border-radius: 4px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        :root { 
+            --bg: #0f1215; 
+            --side: #16191c; 
+            --main: #1c2024; 
+            --blurple: #5865f2; 
+            --success: #3ba55c; 
+            --danger: #ed4245; 
+            --transition: 0.3s ease;
+        }
+
+        body { 
+            background: var(--bg); 
+            color: white; 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            display: flex; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+        
+        /* SIDEBAR LOGIC */
+        .sidebar { 
+            width: 280px; 
+            min-width: 280px;
+            background: var(--side); 
+            padding: 20px; 
+            border-right: 1px solid #2d3238; 
+            transition: margin-left var(--transition);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Class to hide sidebar */
+        .sidebar.collapsed {
+            margin-left: -280px;
+        }
+
+        .content { 
+            flex-grow: 1; 
+            padding: 30px; 
+            overflow-y: auto; 
+            background: var(--main); 
+            transition: width var(--transition);
+        }
+
+        /* TOGGLE BUTTON STYLE */
+        .toggle-btn {
+            position: fixed;
+            left: 20px;
+            bottom: 20px;
+            z-index: 100;
+            background: var(--blurple);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* UI ELEMENTS */
+        .card { background: #23282d; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .btn { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.3s; }
         .btn-primary { background: var(--blurple); color: white; }
-        .btn-danger { background: var(--danger); color: white; }
-        .btn-edit { background: var(--success); color: white; margin-right: 10px; }
-        #code-editor { height: 350px; width: 100%; border-radius: 4px; margin: 15px 0; border: 1px solid #444; }
-        #error-box { background: rgba(237, 66, 69, 0.15); border: 1px solid var(--danger); color: #ff8e8e; padding: 15px; margin-bottom: 15px; display: none; border-radius: 4px; }
-        .server-btn { width: 100%; text-align: left; background: transparent; color: #b9bbbe; border: none; padding: 10px; cursor: pointer; border-radius: 4px; }
-        .server-btn:hover { background: #393c43; color: white; }
+        
+        #console-container { display: none; margin-top: 20px; }
+        .console { background: #000; color: #00ff00; font-family: 'Fira Code', monospace; padding: 15px; height: 180px; overflow-y: auto; border-radius: 8px; border: 1px solid #333; font-size: 13px; }
+        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #111; padding-bottom: 2px; }
+
+        #code-editor { height: 450px; border-radius: 8px; margin: 15px 0; border: 1px solid #333; }
+        
+        .server-btn { 
+            width: 100%; 
+            padding: 12px; 
+            margin-bottom: 5px; 
+            background: transparent; 
+            color: #b9bbbe; 
+            border: none; 
+            text-align: left; 
+            cursor: pointer; 
+            border-radius: 6px;
+        }
+        .server-btn:hover { background: #2d3136; color: white; }
     </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <h2 style="color: var(--blurple);">S.S. Syntax</h2>
-        <div id="server-list"></div>
-        <button class="btn btn-primary" style="width: 100%; margin-top: 20px;" onclick="login()">Login / Refresh</button>
+    <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle Menu">☰</button>
+
+    <div class="sidebar" id="main-sidebar">
+        <h2 style="color: var(--blurple); margin-bottom: 30px;">S.S. Syntax</h2>
+        <div id="server-list" style="flex-grow: 1; overflow-y: auto;">
+            </div>
+        <button class="btn btn-primary" onclick="login()">Login</button>
     </div>
 
     <div class="content">
-        <div id="view-home">
-            <h1>Welcome to S.S. Syntax</h1>
-            <p>Select a server from the sidebar to manage its custom commands.</p>
-        </div>
-
         <div id="view-manage" style="display: none;">
-            <h1 id="server-name">Server Name</h1>
-            
-            <div id="bot-warning" class="card" style="border-color: var(--danger); display: none;">
-                <h3>⚠️ Bot is missing!</h3>
-                <p>The bot must be in the server to create commands.</p>
-                <button class="btn btn-primary" onclick="inviteBot()">Invite Bot</button>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1 id="server-name">Dashboard</h1>
+                <div>
+                    <input type="checkbox" id="toggle-console" onchange="toggleConsole()">
+                    <label for="toggle-console">Live Console</label>
+                </div>
             </div>
 
-            <div id="manage-controls">
+            <div id="console-container">
+                <div class="console" id="log-output">
+                    <div class="log-entry">System: Console Ready.</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
                 <button class="btn btn-primary" onclick="showEditor()">+ Create New Command</button>
-                <h3 style="margin-top: 30px;">Active Commands</h3>
-                <div id="command-list"></div>
+                <div id="command-list" style="margin-top: 20px;"></div>
             </div>
         </div>
 
         <div id="view-editor" style="display: none;">
-            <button class="btn" onclick="showManager()">← Back</button>
-            <h2 id="editor-title">Command Editor</h2>
+            <button class="btn" onclick="showManager()" style="background: #333; color: white; margin-bottom: 15px;">← Back to Manager</button>
             <div class="card">
-                <div id="error-box"></div>
-                <label>Command Name (e.g. 'hello')</label><br>
-                <input type="text" id="edit-name" style="width:100%; padding:10px; background:#202225; color:white; border:1px solid #444; margin: 10px 0;">
+                <h3 id="editor-title">Command Workspace</h3>
+                <input type="text" id="edit-name" placeholder="Enter command name (e.g. ping)" style="width:100%; padding:12px; margin-bottom:10px; background:#111; color:white; border:1px solid #444; border-radius: 6px;">
                 
-                <label>Language</label>
-                <select id="edit-lang" onchange="updateEditorMode()" style="padding:5px; margin-left:10px;">
-                    <option value="js">JavaScript</option>
-                    <option value="py">Python</option>
-                    <option value="go">Go</option>
-                </select>
-
                 <div id="code-editor"></div>
                 
-                <button class="btn btn-primary" onclick="saveCommand()">Save & Deploy</button>
+                <button class="btn btn-primary" onclick="saveCommand()" style="width: 100%;">DEPLOY COMMAND</button>
             </div>
         </div>
     </div>
 
     <script>
+        const socket = io();
         let currentGuildId = null;
         let editingCmdId = null;
+        
+        // --- ACE EDITOR SETUP ---
         let editor = ace.edit("code-editor");
         editor.setTheme("ace/theme/monokai");
         editor.session.setMode("ace/mode/javascript");
+        editor.setOptions({ fontSize: "16px", showPrintMargin: false });
 
-        function inviteBot() {
-            window.open(`https://discord.com/api/oauth2/authorize?client_id=1466792124686008341&permissions=8&scope=bot`);
+        // --- SIDEBAR TOGGLE LOGIC ---
+        function toggleSidebar() {
+            const sidebar = document.getElementById('main-sidebar');
+            sidebar.classList.toggle('collapsed');
+            
+            // Resize the editor after the transition finishes to prevent layout bugs
+            setTimeout(() => {
+                editor.resize();
+            }, 350);
         }
 
-        async function selectServer(id, name) {
-            currentGuildId = id;
-            document.getElementById('view-home').style.display = 'none';
+        // --- CONSOLE LOGIC ---
+        function toggleConsole() {
+            const isChecked = document.getElementById('toggle-console').checked;
+            document.getElementById('console-container').style.display = isChecked ? 'block' : 'none';
+        }
+
+        socket.on('log', (data) => {
+            const output = document.getElementById('log-output');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="timestamp">[${data.timestamp}]</span> ${data.message}`;
+            output.appendChild(entry);
+            output.scrollTop = output.scrollHeight;
+        });
+
+        // --- VIEW SWITCHING ---
+        function showEditor() {
+            document.getElementById('view-manage').style.display = 'none';
+            document.getElementById('view-editor').style.display = 'block';
+            editor.resize();
+        }
+
+        function showManager() {
             document.getElementById('view-manage').style.display = 'block';
             document.getElementById('view-editor').style.display = 'none';
-            document.getElementById('server-name').innerText = name;
+        }
 
-            const res = await fetch(`/api/check-bot/${id}`);
-            if (!res.ok) {
-                document.getElementById('bot-warning').style.display = 'block';
-                document.getElementById('manage-controls').style.display = 'none';
-            } else {
-                document.getElementById('bot-warning').style.display = 'none';
-                document.getElementById('manage-controls').style.display = 'block';
-                loadCommands();
-            }
+        // --- DATA LOGIC ---
+        async function selectServer(id, name) {
+            currentGuildId = id;
+            socket.emit('join-server', id);
+            document.getElementById('view-manage').style.display = 'block';
+            document.getElementById('view-home').style.display = 'none';
+            document.getElementById('server-name').innerText = name;
+            loadCommands();
         }
 
         async function loadCommands() {
             const res = await fetch(`/api/commands/${currentGuildId}`);
             const cmds = await res.json();
             const list = document.getElementById('command-list');
-            list.innerHTML = cmds.length ? '' : '<p>No commands yet.</p>';
-            cmds.forEach(c => {
-                list.innerHTML += `
-                    <div class="cmd-item">
-                        <span><strong>!${c.name}</strong></span>
-                        <div>
-                            <button class="btn btn-edit" onclick='editCommand(${JSON.stringify(c)})'>Edit</button>
-                            <button class="btn btn-danger" onclick="deleteCommand('${c.id}')">Delete</button>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        function showEditor() {
-            editingCmdId = null;
-            document.getElementById('edit-name').value = '';
-            editor.setValue('return "Hello World!";');
-            document.getElementById('view-manage').style.display = 'none';
-            document.getElementById('view-editor').style.display = 'block';
+            list.innerHTML = cmds.map(c => `
+                <div style="background:#1a1d21; padding:15px; margin-bottom:8px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; border: 1px solid #333;">
+                    <span><strong>!${c.name}</strong></span>
+                    <button class="btn btn-primary" style="padding:8px 15px; font-size: 12px;" onclick='editCommand(${JSON.stringify(c)})'>EDIT</button>
+                </div>
+            `).join('');
         }
 
         function editCommand(cmd) {
             editingCmdId = cmd.id;
             document.getElementById('edit-name').value = cmd.name;
-            document.getElementById('edit-lang').value = cmd.language;
-            editor.setValue(cmd.code);
-            updateEditorMode();
-            document.getElementById('view-manage').style.display = 'none';
-            document.getElementById('view-editor').style.display = 'block';
+            editor.setValue(cmd.code, -1);
+            showEditor();
         }
 
         async function saveCommand() {
             const code = editor.getValue();
-            const lang = document.getElementById('edit-lang').value;
             const name = document.getElementById('edit-name').value;
-
-            const test = await fetch('/api/test-code', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ language: lang, code })
-            });
-            const result = await test.json();
-
-            if (!result.success) {
-                document.getElementById('error-box').innerText = "❌ Code Error: " + result.error;
-                document.getElementById('error-box').style.display = 'block';
-                return;
-            }
+            if(!name) return alert("Enter a name!");
 
             await fetch('/api/save-command', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ guildId: currentGuildId, command: { id: editingCmdId || Date.now(), name, language: lang, code }})
+                body: JSON.stringify({ guildId: currentGuildId, command: { id: editingCmdId || 'cmd_'+Date.now(), name, language: 'js', code }})
             });
 
             alert("Command Saved!");
-            selectServer(currentGuildId, document.getElementById('server-name').innerText);
+            showManager();
+            loadCommands();
         }
 
-        function updateEditorMode() {
-            const lang = document.getElementById('edit-lang').value;
-            const modes = { 'js': 'ace/mode/javascript', 'py': 'ace/mode/python', 'go': 'ace/mode/golang' };
-            editor.session.setMode(modes[lang]);
+        function login() { 
+            window.location.href = `https://discord.com/api/oauth2/authorize?client_id=1466792124686008341&redirect_uri=${encodeURIComponent(window.location.origin + '/callback.html')}&response_type=code&scope=identify+guilds`; 
         }
-
-        function login() { window.location.href = `https://discord.com/api/oauth2/authorize?client_id=1466792124686008341&redirect_uri=${encodeURIComponent(window.location.origin + '/callback.html')}&response_type=code&scope=identify+guilds`; }
 
         async function checkAuth() {
             const token = localStorage.getItem('discord_token');
@@ -180,6 +248,7 @@
             const res = await fetch('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${token}` } });
             const guilds = await res.json();
             const list = document.getElementById('server-list');
+            list.innerHTML = '';
             guilds.forEach(g => {
                 if ((BigInt(g.permissions) & 0x8n) === 0x8n) {
                     list.innerHTML += `<button class="server-btn" onclick="selectServer('${g.id}', '${g.name}')"># ${g.name}</button>`;
@@ -189,5 +258,5 @@
         window.onload = checkAuth;
     </script>
 </body>
-    </html>
-    
+            </html>
+            
