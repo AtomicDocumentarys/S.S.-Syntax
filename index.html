@@ -3,72 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.S. Syntax | Dashboard</title>
+    <title>S.S. Syntax</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
     <style>
         :root { --bg: #0b0e11; --nav: #15191c; --accent: #5865f2; --text: #f0f0f0; --border: #2d3238; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { height: 60px; background: var(--nav); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
-        .wrapper { display: flex; flex-grow: 1; overflow: hidden; }
-        nav { width: 240px; background: var(--nav); border-right: 1px solid var(--border); }
-        .nav-item { padding: 12px 25px; cursor: pointer; color: #b9bbbe; display: flex; align-items: center; gap: 10px; }
-        .nav-item.active { background: #2d3238; color: white; border-left: 3px solid var(--accent); }
-        main { flex-grow: 1; padding: 30px; overflow-y: auto; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+
+        .menu-btn { position: fixed; top: 15px; left: 15px; z-index: 1000; background: var(--accent); border: none; color: white; padding: 10px; border-radius: 5px; cursor: pointer; font-size: 20px; }
+
+        nav { width: 260px; min-width: 260px; background: var(--nav); border-right: 1px solid var(--border); transition: 0.3s; transform: translateX(-260px); position: absolute; height: 100%; z-index: 999; display: flex; flex-direction: column; padding-top: 60px; }
+        nav.open { transform: translateX(0); position: relative; }
+
+        .sidebar-section { padding: 15px; border-bottom: 1px solid var(--border); }
+        .small-select { width: 100%; background: #1e2327; color: white; border: 1px solid var(--border); padding: 8px; border-radius: 4px; font-size: 12px; margin-bottom: 10px; outline: none; }
+
+        .nav-item { padding: 12px 20px; cursor: pointer; color: #b9bbbe; transition: 0.2s; font-size: 14px; }
+        .nav-item:hover, .nav-item.active { background: #2d3238; color: white; border-left: 3px solid var(--accent); }
+
+        main { flex-grow: 1; padding: 20px; overflow-y: auto; padding-top: 70px; width: 100%; }
         .view { display: none; }
         .view.active { display: block; }
-        .card { background: #181d21; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
-        #code-editor { height: 400px; border-radius: 5px; margin: 15px 0; border: 1px solid #333; }
-        .console { background: #000; color: #0f0; padding: 15px; height: 150px; border-radius: 5px; font-family: monospace; overflow-y: auto; }
-        select { background: #1e2327; color: white; padding: 8px; border-radius: 5px; }
+
+        .card { background: #181d21; border-radius: 8px; padding: 15px; border: 1px solid var(--border); margin-bottom: 15px; }
+        #code-editor { height: 350px; border-radius: 5px; border: 1px solid #333; margin: 10px 0; }
+        .console { background: #000; color: #0f0; padding: 10px; height: 120px; overflow-y: auto; font-family: monospace; font-size: 12px; border: 1px solid #444; margin-top: 10px; }
+        .btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        
+        iframe { width: 100%; height: 70vh; border: none; border-radius: 8px; background: white; }
+        .db-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .db-table td, .db-table th { border: 1px solid var(--border); padding: 8px; text-align: left; }
     </style>
 </head>
 <body>
 
-    <header>
-        <div style="font-weight: bold; color: var(--accent); font-size: 20px;">S.S. Syntax</div>
-        <div style="display:flex; gap:10px;">
-            <select id="acc-select"><option>Loading...</option></select>
-            <select id="guild-select" onchange="serverChanged()"><option value="">Select Server</option></select>
+    <button class="menu-btn" onclick="toggleMenu()">☰</button>
+
+    <nav id="sidebar">
+        <div class="sidebar-section">
+            <label style="font-size: 10px; color: #888; font-weight: bold;">ACCOUNT</label>
+            <select id="acc-select" class="small-select"><option>Guest</option></select>
+            
+            <label style="font-size: 10px; color: #888; font-weight: bold;">SERVER</label>
+            <select id="guild-select" class="small-select" onchange="serverChanged()"><option value="">Select Server</option></select>
         </div>
-    </header>
 
-    <div class="wrapper">
-        <nav>
-            <div class="nav-item active" onclick="switchTab('home')">🏠 Home</div>
-            <div class="nav-item" onclick="switchTab('commands')">📜 Custom Commands</div>
-            <div class="nav-item" onclick="switchTab('database')">🗄️ Database</div>
-            <div class="nav-item" onclick="switchTab('terms')">📑 Terms</div>
-            <div class="nav-item" onclick="switchTab('privacy')">🛡️ Privacy</div>
-        </nav>
+        <div class="nav-item active" onclick="switchTab('home')">Home</div>
+        <div class="nav-item" onclick="switchTab('commands')">Custom Commands</div>
+        <div class="nav-item" onclick="switchTab('database')">Database</div>
+        <div class="nav-item" onclick="switchTab('terms')">Terms of Service</div>
+        <div class="nav-item" onclick="switchTab('privacy')">Privacy Policy</div>
+    </nav>
 
-        <main>
-            <div id="view-home" class="view active">
-                <h1>Welcome, <span id="user-name">Guest</span></h1>
-                <div class="card">
-                    <h3>Live Console Output</h3>
-                    <div class="console" id="log-output">Select a server to see logs...</div>
-                </div>
+    <main>
+        <div id="view-home" class="view active">
+            <h1>S.S. Syntax Dashboard</h1>
+            <p>Welcome! Use the sidebar to manage your bot settings and custom scripts.</p>
+        </div>
+
+        <div id="view-commands" class="view">
+            <h2>Command Manager</h2>
+            <div id="command-list-container">
+                <button class="btn" onclick="showEditor()">+ Create New Command</button>
+                <div id="command-list" style="margin-top:20px;"></div>
             </div>
 
-            <div id="view-commands" class="view">
-                <h2>Commands</h2>
-                <div id="editor-container" style="display:none;" class="card">
-                    <input type="text" id="cmd-name" placeholder="Name" style="width:100%; margin-bottom:10px; padding:10px; background:#000; color:#fff;">
+            <div id="editor-container" style="display:none;">
+                <button onclick="hideEditor()" style="background:none; color:var(--accent); border:none; cursor:pointer; font-weight:bold;">← BACK TO LIST</button>
+                <div class="card" style="margin-top:10px;">
+                    <input type="text" id="cmd-name" placeholder="Command Trigger (e.g. hello)" style="width:100%; padding:10px; background:#000; color:#fff; border:1px solid #444; box-sizing: border-box;">
                     <div id="code-editor"></div>
-                    <button onclick="saveCommand()" style="padding:10px; background:var(--accent); color:#fff; border:none; border-radius:4px;">Save</button>
-                    <button onclick="hideEditor()" style="padding:10px; background:#444; color:#fff; border:none; border-radius:4px;">Cancel</button>
-                </div>
-                <div id="command-list-container">
-                    <button onclick="showEditor()" style="padding:10px; background:var(--accent); color:#fff; border:none; border-radius:4px;">+ New Command</button>
-                    <div id="command-list" style="margin-top:20px;"></div>
+                    
+                    <label style="font-size: 11px; color: #0f0; font-weight: bold;">LIVE CONSOLE OUTPUT</label>
+                    <div class="console" id="log-output">Execute a command in Discord to see logs here...</div>
+                    
+                    <button class="btn" style="margin-top:10px; width: 100%;" onclick="saveCommand()">SAVE & DEPLOY</button>
                 </div>
             </div>
+        </div>
 
-            <div id="view-database" class="view"><h2>Database</h2><div class="card" id="db-list">No data yet.</div></div>
-            <div id="view-terms" class="view"><h2>Terms</h2><p>Standard terms apply.</p></div>
-            <div id="view-privacy" class="view"><h2>Privacy</h2><p>We respect your data.</p></div>
-        </main>
-    </div>
+        <div id="view-database" class="view">
+            <h2>Server Database</h2>
+            <div class="card">
+                <button class="btn" onclick="fetchDatabase()">Refresh Data</button>
+                <table class="db-table">
+                    <thead><tr><th>Key/ID</th><th>Value/Script</th></tr></thead>
+                    <tbody id="db-body"><tr><td colspan="2">Select a server to view database content.</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="view-terms" class="view">
+            <h2>Terms of Service</h2>
+            <iframe src="terms.html"></iframe>
+        </div>
+
+        <div id="view-privacy" class="view">
+            <h2>Privacy Policy</h2>
+            <iframe src="privacy.html"></iframe>
+        </div>
+    </main>
 
     <script>
         let currentGuildId = null;
@@ -76,27 +109,28 @@
         editor.setTheme("ace/theme/monokai");
         editor.session.setMode("ace/mode/javascript");
 
+        function toggleMenu() { document.getElementById('sidebar').classList.toggle('open'); }
+
         function switchTab(t) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             document.getElementById('view-' + t).classList.add('active');
             event.currentTarget.classList.add('active');
-            if(t === 'commands') editor.resize();
+            if(t === 'database') fetchDatabase();
+            if(window.innerWidth < 900) toggleMenu(); 
         }
 
         async function serverChanged() {
             currentGuildId = document.getElementById('guild-select').value;
-            if(!currentGuildId) return;
-            loadCommands();
+            if(currentGuildId) loadCommands();
         }
 
-        // POLLING: Check for new logs every 2 seconds
         setInterval(async () => {
-            if (!currentGuildId) return;
+            if (!currentGuildId || document.getElementById('editor-container').style.display === 'none') return;
             const res = await fetch(`/api/logs/${currentGuildId}`);
             const logs = await res.json();
             const logBox = document.getElementById('log-output');
-            logBox.innerHTML = logs.map(l => `<div>[${l.timestamp}] ${l.message}</div>`).join('');
+            logBox.innerHTML = logs.map(l => `<div><span style="color:#888">[${l.timestamp}]</span> ${l.message}</div>`).join('');
             logBox.scrollTop = logBox.scrollHeight;
         }, 2000);
 
@@ -105,10 +139,18 @@
             const cmds = await res.json();
             document.getElementById('command-list').innerHTML = cmds.map(c => `
                 <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>!${c.name}</span>
-                    <button onclick='editCommand(${JSON.stringify(c)})' style="padding:5px 10px;">Edit</button>
+                    <span><strong>!${c.name}</strong></span>
+                    <button onclick='editCommand(${JSON.stringify(c)})' style="background:none; color:var(--accent); border:none; cursor:pointer; font-weight:bold;">EDIT</button>
                 </div>
             `).join('');
+        }
+
+        async function fetchDatabase() {
+            if(!currentGuildId) return;
+            const res = await fetch(`/api/database/${currentGuildId}`);
+            const data = await res.json();
+            const body = document.getElementById('db-body');
+            body.innerHTML = Object.entries(data).map(([k, v]) => `<tr><td>${k}</td><td>${v.substring(0, 50)}...</td></tr>`).join('') || '<tr><td colspan="2">No data found.</td></tr>';
         }
 
         function showEditor() { document.getElementById('editor-container').style.display='block'; document.getElementById('command-list-container').style.display='none'; editor.resize(); }
@@ -126,18 +168,16 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ guildId: currentGuildId, command: { id: Date.now(), name: document.getElementById('cmd-name').value, code: editor.getValue() }})
             });
-            alert("Saved!");
+            alert("Command Deployed!");
             hideEditor();
             loadCommands();
         }
 
         async function checkAuth() {
             const token = localStorage.getItem('discord_token');
-            if (!token) return window.location.href = `https://discord.com/api/oauth2/authorize?client_id=1466792124686008341&redirect_uri=${encodeURIComponent(window.location.origin + '/callback.html')}&response_type=code&scope=identify+guilds`;
-            
+            if (!token) return;
             const userRes = await fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token}` } });
             const user = await userRes.json();
-            document.getElementById('user-name').innerText = user.username;
             document.getElementById('acc-select').innerHTML = `<option>${user.username}</option>`;
 
             const guildRes = await fetch('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${token}` } });
@@ -150,4 +190,5 @@
         window.onload = checkAuth;
     </script>
 </body>
-</html>
+    </html>
+                    
