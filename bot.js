@@ -23,76 +23,72 @@ function addLog(guildId, message) {
     if (liveLogs.length > 50) liveLogs.shift();
 }
 
-// FIX: Filter only servers where user is Admin AND Bot is present
+// API: Mutual Servers
 app.get('/api/mutual-servers', async (req, res) => {
     const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).send("Unauthorized");
     try {
         const response = await axios.get('https://discord.com/api/users/@me/guilds', {
             headers: { Authorization: authHeader }
         });
-        const mutual = response.data.filter(g => 
-            (BigInt(g.permissions) & 0x8n) && client.guilds.cache.has(g.id)
-        );
+        const mutual = response.data.filter(g => (BigInt(g.permissions) & 0x8n) && client.guilds.cache.has(g.id));
         res.json(mutual);
     } catch (e) { res.status(500).send("Sync Error"); }
 });
 
-// Database API for the Dashboard Tab
-app.get('/api/db-all/:guildId', async (req, res) => {
-    const data = await redis.hgetall(`userdata:${req.params.guildId}`);
-    res.json(data);
-});
-
-app.post('/api/db-delete', async (req, res) => {
-    await redis.hdel(`userdata:${req.body.guildId}`, req.body.key);
+// API: Save Command with Advanced Metadata
+app.post('/api/save-command', async (req, res) => {
+    const { guildId, command } = req.body;
+    await redis.hset(`commands:${guildId}`, command.id, JSON.stringify(command));
     res.sendStatus(200);
 });
 
-// --- COMMAND EXECUTION ENGINE ---
-async function runCommand(cmd, message) {
-    const guildId = message.guild.id;
-    
-    // Automated DB Functions injected into the sandbox
-    const db = {
-        set: async (key, val) => await redis.hset(`userdata:${guildId}`, key, JSON.stringify(val)),
-        get: async (key) => {
-            const data = await redis.hget(`userdata:${guildId}`, key);
-            return data ? JSON.parse(data) : null;
-        },
-        del: async (key) => await redis.hdel(`userdata:${guildId}`, key),
-        all: async () => await redis.hgetall(`userdata:${guildId}`)
-    };
-
-    const context = {
-        db,
-        message,
-        user: message.author,
-        reply: (text) => message.reply(text),
-        sendLog: (msg) => addLog(guildId, msg)
-    };
-
-    const vm = new VM({ timeout: 3000, sandbox: context });
-    try {
-        addLog(guildId, `Executing !${cmd.trigger}`);
-        await vm.run(`(async () => { ${cmd.code} })()`);
-    } catch (e) {
-        addLog(guildId, `Error: ${e.message}`);
-        message.reply(`⚠️ Command Error: ${e.message}`);
-    }
-}
-
+// --- COMMAND ENGINE WITH TRIGGER TYPES ---
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
+
     const commands = await redis.hgetall(`commands:${message.guild.id}`);
     for (const id in commands) {
         const cmd = JSON.parse(commands[id]);
-        if (message.content.startsWith('!' + cmd.trigger)) {
-            await runCommand(cmd, message);
+        const prefix = cmd.prefix || "!";
+        const content = message.content;
+        let triggered = false;
+
+        switch (cmd.type) {
+            case "Command (prefix)":
+                if (content.startsWith(prefix + cmd.trigger)) triggered = true;
+                break;
+            case "Starts with":
+                if (content.startsWith(cmd.trigger)) triggered = true;
+                break;
+            case "Contains":
+                if (content.includes(cmd.trigger)) triggered = true;
+                break;
+            case "Exact Match":
+                if (content === cmd.trigger) triggered = true;
+                break;
+            case "Regex":
+                try { if (new RegExp(cmd.trigger).test(content)) triggered = true; } catch(e){}
+                break;
+        }
+
+        if (triggered) {
+            // Check Role Requirements
+            if (cmd.roles?.length > 0 && !message.member.roles.cache.some(r => cmd.roles.includes(r.id))) continue;
+            // Check Channel Requirements
+            if (cmd.channels?.length > 0 && !cmd.channels.includes(message.channel.id)) continue;
+
+            const db = {
+                set: async (k, v) => await redis.hset(`userdata:${message.guild.id}`, k, JSON.stringify(v)),
+                get: async (k) => JSON.parse(await redis.hget(`userdata:${message.guild.id}`, k) || "null"),
+                del: async (k) => await redis.hdel(`userdata:${message.guild.id}`, k)
+            };
+
+            const vm = new VM({ timeout: 3000, sandbox: { db, message, reply: (t) => message.reply(t) } });
+            try { await vm.run(`(async () => { ${cmd.code} })()`); } catch (e) { addLog(message.guild.id, e.message); }
         }
     }
 });
 
 client.login(config.TOKEN);
-app.listen(process.env.PORT || 80, '0.0.0.0');
-    
+app.listen(process.env.PORT || 80);
+                     
