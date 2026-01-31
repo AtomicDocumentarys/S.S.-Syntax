@@ -526,9 +526,9 @@ app.post('/api/webhooks/:guildId',
             
             const webhookData = {
                 id: webhookId,
-                name,
-                url,
-                events,
+                name: name,
+                url: url,
+                events: events,
                 secret: secret || crypto.randomBytes(16).toString('hex'),
                 createdAt: new Date().toISOString(),
                 createdBy: req.user.id
@@ -600,4 +600,3 @@ app.delete('/api/webhooks/:guildId/:webhookId', authenticateUser, verifyGuildAcc
 
 // Webhook Test Endpoint
 app.post('/api/webhooks/:guildId/:webhookId/test', 
-    authenticateUse
