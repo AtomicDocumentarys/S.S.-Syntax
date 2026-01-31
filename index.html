@@ -3,296 +3,330 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>S.S. Syntax | Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
-
+<title>S.S. Syntax Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-:root { --bg:#0b0e11; --side:#15191d; --card:#1c2127; --accent:#3ba55c; --err:#f04747; --text:#fff; --border:#2e3338; }
-body { background:var(--bg); color:var(--text); font-family:sans-serif; margin:0; display:flex; height:100vh; overflow:hidden; }
-.sidebar { width:260px; background:var(--side); border-right:1px solid var(--border); transition:.3s; z-index:1000; position:relative; }
-.sidebar.closed { margin-left:-260px; }
-.nav-item { padding:15px 25px; cursor:pointer; color:#b9bbbe; border-left:4px solid transparent; }
-.nav-item.active { background:#202429; color:#fff; border-left-color:var(--accent); }
-.nav-item.owner-only,.nav-item.s-only { display:none; }
-.main-content { flex:1; display:flex; flex-direction:column; width:100%; overflow-y:auto; position:relative; z-index:1; }
-.top-bar { height:60px; background:#0b0e11; border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 20px; justify-content:space-between; flex-shrink:0; }
-.user-menu { position:relative; display:flex; align-items:center; cursor:pointer; gap:10px; }
-.user-pfp { width:32px; height:32px; border-radius:50%; border:2px solid var(--accent); }
-.dropdown-content { display:none; position:absolute; right:0; top:100%; background:var(--side); border:1px solid var(--border); min-width:150px; border-radius:4px; z-index:1001; }
-.dropdown-content div { padding:12px; border-bottom:1px solid var(--border); transition:.2s; }
-.dropdown-content div:hover { background:#202429; }
-.card { background:var(--card); border:1px solid var(--border); padding:25px; border-radius:4px; margin-bottom:20px; overflow:hidden; }
-.input-black { width:100%; background:#000; border:1px solid #333; color:#fff; padding:12px; border-radius:4px; margin-bottom:15px; box-sizing:border-box; }
-.btn-green { background:var(--accent); color:#fff; border:none; padding:12px 20px; border-radius:4px; cursor:pointer; font-weight:bold; }
-.btn-red { background:var(--err); color:#fff; border:none; padding:12px 20px; border-radius:4px; cursor:pointer; }
-#code-editor { height:300px; border:1px solid #333; margin-bottom:10px; }
-.view { display:none; max-width:850px; margin:20px auto; width:90%; }
-.view.active { display:block; }
-.console { background:#000; color:#0f0; padding:10px; border:1px solid #333; height:150px; overflow-y:auto; display:none; font-family:monospace; margin-top:10px; }
-@media (max-width:768px){ .sidebar{position:absolute;height:100%;} .sidebar.closed{margin-left:-260px;} #menu-trigger{display:block!important;} }
+:root {
+  --bg:#0b0e11; --card:#151924; --accent:#5f7fff; --text:#fff; --danger:#ff4f4f;
+}
+body,html{margin:0;padding:0;font-family:sans-serif;background:var(--bg);color:var(--text);}
+button{cursor:pointer;}
+.btn{background:var(--accent);color:#fff;border:none;padding:7px 12px;border-radius:4px;margin:3px;transition:.2s;}
+.btn:hover{opacity:.85;}
+.btn-green{background:green;color:#fff;border:none;padding:5px 10px;border-radius:4px;}
+.danger{background:var(--danger);}
+.input-black{background:#202429;color:#fff;border:1px solid #2e3338;padding:5px;border-radius:4px;}
+.card{background:var(--card);padding:15px;margin:10px 0;border-radius:8px;overflow:hidden;transition:.3s;}
+.sidebar{width:260px;background:#151924;border-right:1px solid #2e3338;transition:.3s;z-index:1000;position:relative;}
+.sidebar.closed{margin-left:-260px;}
+.nav-item{padding:15px 25px;cursor:pointer;color:#b9bbbe;border-left:4px solid transparent;transition:.2s;}
+.nav-item.active{background:#202429;color:#fff;border-left-color:var(--accent);}
+.nav-item.owner-only,.nav-item.s-only{display:none;}
+.main-content{flex:1;display:flex;flex-direction:column;width:100%;overflow-y:auto;}
+.top-bar{height:60px;background:#0b0e11;border-bottom:1px solid #2e3338;display:flex;align-items:center;padding:0 20px;justify-content:space-between;flex-shrink:0;}
+.user-menu{position:relative;display:flex;align-items:center;cursor:pointer;gap:10px;}
+.user-pfp{width:32px;height:32px;border-radius:50%;border:2px solid var(--accent);}
+.dropdown-content{display:none;position:absolute;right:0;top:100%;background:#151924;border:1px solid #2e3338;min-width:150px;border-radius:4px;z-index:1001;}
+.dropdown-content div{padding:12px;border-bottom:1px solid #2e3338;transition:.2s;}
+.dropdown-content div:hover{background:#202429;}
+.view{display:none;max-width:850px;margin:20px auto;width:90%;opacity:0;transform:translateY(10px);transition:all .3s;}
+.view.active{display:block;opacity:1;transform:translateY(0);}
+.cmd-item{display:flex;justify-content:space-between;align-items:center;padding:5px;border-bottom:1px solid #2e3338;}
+.cmd-buttons button{margin-left:5px;}
+#editor{height:250px;width:100%;border:1px solid #2e3338;margin:5px 0;border-radius:4px;}
+#consoleBox{height:150px;width:100%;background:#202429;padding:10px;overflow-y:auto;margin-top:5px;border-radius:4px;font-family:monospace;white-space:pre-wrap;}
+@media(max-width:768px){.sidebar{position:absolute;height:100%;}.sidebar.closed{margin-left:-260px;}#menu-trigger{display:block !important;}}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.15.2/ace.js"></script>
 </head>
-
 <body>
+
 <div id="sidebar" class="sidebar closed">
   <div style="padding:20px;font-weight:bold;color:var(--accent);">S.S. SYNTAX</div>
   <div class="nav-item active" onclick="tab('home')">Home</div>
   <div class="nav-item s-only" onclick="tab('commands')">Custom Commands</div>
   <div class="nav-item s-only" onclick="tab('settings')">Server Settings</div>
   <div class="nav-item owner-only" onclick="tab('status')">Status</div>
+  <div class="nav-item" onclick="tab('terms')">Terms</div>
+  <div class="nav-item" onclick="tab('privacy')">Privacy</div>
 </div>
 
 <div class="main-content">
   <div class="top-bar">
     <div style="display:flex;align-items:center;gap:15px;">
       <div id="menu-trigger" class="btn-green" style="padding:5px 10px;display:none;" onclick="toggleMenu()">☰</div>
-      <select id="guild-select" class="input-black" style="width:200px;margin:0;display:none;" onchange="loadServer()">
-        <option value="">Choose a Server</option>
-      </select>
+      <select id="guildSelect" class="input-black" style="width:200px;margin:0;display:none;"></select>
     </div>
-
-    <div id="auth-section"><button class="btn-green" onclick="login()">LOG IN WITH DISCORD</button></div>
-
-    <div id="user-section" class="user-menu" style="display:none;" onclick="toggleDropdown()">
-      <span id="user-name">User</span>
-      <img id="user-pfp" class="user-pfp">
-      <div id="dropdown" class="dropdown-content"><div onclick="logout()">Logout</div></div>
+    <div id="authSection"><button class="btn" onclick="login()">LOG IN WITH DISCORD</button></div>
+    <div id="userSection" class="user-menu hidden" onclick="toggleDropdown()">
+      <span id="userName">User</span>
+      <img id="userPfp" class="user-pfp">
+      <div id="dropdown" class="dropdown-content">
+        <div onclick="logout()">Logout</div>
+      </div>
     </div>
   </div>
 
   <main>
-    <div id="v-home" class="view active"><div class="card"><h1>S.S. Syntax</h1><p>Ready to deploy.</p></div></div>
-
-    <div id="v-settings" class="view">
+    <div id="v-home" class="view active">
       <div class="card">
-        <h2>Settings</h2>
-        <label>Prefix</label>
-        <input type="text" id="g-prefix" class="input-black">
-        <button class="btn-green" onclick="saveSettings()">Save Prefix</button>
+        <h1>Welcome to S.S. Syntax</h1>
+        <p>High-performance Discord automation.</p>
+        <a href="https://discord.com/api/oauth2/authorize?client_id=1466792124686008341&permissions=8&scope=bot" class="btn">ADD BOT TO SERVER</a>
       </div>
     </div>
 
     <div id="v-commands" class="view">
-      <div id="list-view">
-        <div class="card">Commands: <span id="cmd-count">0</span></div>
-        <button class="btn-green" onclick="openEditor()">+ New Command</button>
-        <div id="cmd-list" style="margin-top:20px;"></div>
+      <div id="commandsCard" class="card">
+        <h3>Commands</h3>
+        <div id="commandList"></div>
+        <button onclick="newCommand()">+ New Command</button>
       </div>
+      <div id="editorCard" class="card hidden">
+        <h3>Command Editor</h3>
+        <input id="cTrig" placeholder="Trigger (e.g. !hello)" class="input-black">
+        <label>Language</label>
+        <select id="cLang" class="input-black">
+          <option value="JavaScript">JavaScript</option>
+          <option value="Python">Python</option>
+          <option value="Golang">Golang</option>
+        </select>
+        <div id="editor"></div>
+        <label>Console Mode</label>
+        <select id="consoleMode" class="input-black">
+          <option value="output">Output</option>
+          <option value="error">Errors</option>
+        </select>
+        <button onclick="saveCommand()">Confirm</button>
+        <button onclick="testCommand()">Test</button>
+        <button onclick="cancelEdit()">Cancel</button>
+        <div id="consoleBox"></div>
+      </div>
+    </div>
 
-      <div id="edit-view" style="display:none;">
-        <button class="btn-red" onclick="closeEditor()" style="margin-bottom:10px;">Back</button>
-        <div class="card">
-          <input type="text" id="c-trig" class="input-black" placeholder="Trigger (e.g. !hello)">
-          <select id="c-lang" class="input-black">
-            <option value="JavaScript">JavaScript</option>
-            <option value="Python">Python</option>
-          </select>
-          <div id="code-editor"></div>
-          <button id="save-btn" class="btn-green">Confirm Command</button>
-          <button class="btn-green" style="background:#444;" onclick="testCommand()">Run Local Test</button>
-          <div id="console" class="console"></div>
-        </div>
+    <div id="v-settings" class="view">
+      <div class="card">
+        <h3>Server Settings</h3>
+        <label>Command Prefix</label>
+        <input type="text" id="gPrefix" class="input-black" value="!">
+        <button onclick="saveSettings()">Save Settings</button>
       </div>
     </div>
 
     <div id="v-status" class="view">
-      <div class="card"><h2>System Status</h2><div id="bot-status">Checking...</div></div>
+      <div class="card">
+        <h3>System Status</h3>
+        <div id="botStatus">Checking...</div>
+      </div>
+    </div>
+
+    <div id="v-terms" class="view">
+      <div class="card">
+        <h3>Terms of Service</h3>
+        <p>Use responsibly. No malicious code.</p>
+      </div>
+    </div>
+
+    <div id="v-privacy" class="view">
+      <div class="card">
+        <h3>Privacy Policy</h3>
+        <p>Data is stored in Redis. Tokens are temporary.</p>
+      </div>
     </div>
   </main>
 </div>
 
 <script>
-const BASE_URL = 'https://official-sssyntax-website-production.up.railway.app';
-let token = localStorage.getItem('token');
-let currentGuild = null, editor = null;
+const BASE_URL="https://official-sssyntax-website-production.up.railway.app";
+let token=localStorage.getItem("token");
+let currentGuild=null;
+let editingCmd=null;
 
-const userName = document.getElementById('user-name');
-const userPfp = document.getElementById('user-pfp');
-const authSection = document.getElementById('auth-section');
-const userSection = document.getElementById('user-section');
-const guildSelect = document.getElementById('guild-select');
-const cmdCount = document.getElementById('cmd-count');
-const cmdList = document.getElementById('cmd-list');
-const gPrefix = document.getElementById('g-prefix');
-const botStatus = document.getElementById('bot-status');
-const listView = document.getElementById('list-view');
-const editView = document.getElementById('edit-view');
-const cTrig = document.getElementById('c-trig');
-const cLang = document.getElementById('c-lang');
-const saveBtn = document.getElementById('save-btn');
-const consoleBox = document.getElementById('console');
-const dropdown = document.getElementById('dropdown');
-const sidebar = document.getElementById('sidebar');
+const userName=document.getElementById("userName");
+const userPfp=document.getElementById("userPfp");
+const authSection=document.getElementById("authSection");
+const userSection=document.getElementById("userSection");
+const guildSelect=document.getElementById("guildSelect");
+const commandList=document.getElementById("commandList");
+const editorCard=document.getElementById("editorCard");
+const cTrig=document.getElementById("cTrig");
+const cLang=document.getElementById("cLang");
+const editor=ace.edit("editor",{theme:"ace/theme/monokai",mode:"ace/mode/javascript"});
+const consoleBox=document.getElementById("consoleBox");
+const consoleMode=document.getElementById("consoleMode");
+const gPrefix=document.getElementById("gPrefix");
+const botStatus=document.getElementById("botStatus");
+const dropdown=document.getElementById("dropdown");
 
-function authHeaders(extra={}) { return { ...extra, Authorization:`Bearer ${token}` }; }
-
-function init(){
-  const params=new URLSearchParams(window.location.search);
-  if(params.has('token')){
-    token=params.get('token');
-    localStorage.setItem('token',token);
-    window.history.replaceState({},'',window.location.pathname);
-  }
-  if(token) fetchUser();
+function login(){
+  const clientId="1466792124686008341";
+  const redirectUri=encodeURIComponent(`${BASE_URL}/callback`);
+  const scope=encodeURIComponent("identify guilds");
+  window.location.href=`https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`;
 }
 
+function logout(){localStorage.removeItem("token");location.reload();}
+function toggleDropdown(){dropdown.style.display=dropdown.style.display==='block'?'none':'block';}
+function toggleMenu(){document.getElementById('sidebar').classList.toggle('closed');}
+function tab(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));document.getElementById('v-'+v).classList.add('active');document.querySelector(`[onclick="tab('${v}')"]`)?.classList.add('active');if(window.innerWidth<=768) toggleMenu();}
+
+// FETCH USER
 async function fetchUser(){
+  if(!token) return;
   try{
-    const r=await fetch(`${BASE_URL}/api/user-me`,{headers:authHeaders()});
-    if(!r.ok) throw new Error();
+    const r=await fetch(`${BASE_URL}/api/user-me`,{headers:{Authorization:`Bearer ${token}`}});
+    if(!r.ok) throw new Error('Unauthorized');
     const u=await r.json();
     userName.textContent=u.username;
     userPfp.src=`https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`;
-    authSection.style.display='none';
-    userSection.style.display='flex';
-    if(u.id==='1218997569359970454') document.querySelectorAll('.owner-only').forEach(e=>e.style.display='block');
-    fetchServers();
-  }catch{
-    alert("Login failed. Please try again.");
-    logout();
-  }
-}
-
-async function fetchServers(){
-  try{
-    const r=await fetch(`${BASE_URL}/api/mutual-servers`,{headers:authHeaders()});
-    const s=await r.json();
-    guildSelect.innerHTML='<option value="">Choose a Server</option>';
-    s.forEach(g=>{
-      const o=document.createElement('option');
-      o.value=g.id; o.textContent=g.name;
-      guildSelect.appendChild(o);
-    });
-    guildSelect.style.display='block';
+    authSection.classList.add("hidden");
+    userSection.classList.remove("hidden");
     document.querySelectorAll('.s-only').forEach(e=>e.style.display='block');
-  }catch{ alert("Failed to load servers"); }
+    if(u.id==='1218997569359970454') document.querySelectorAll('.owner-only').forEach(e=>e.style.display='block');
+    fetchGuilds();
+    if(u.id==='1218997569359970454') loadStatus();
+  }catch(e){console.error(e);logout();}
 }
 
-function loadServer(){ currentGuild=guildSelect.value; if(currentGuild){ refreshCommands(); loadSettings(); loadStatus(); } }
-
-async function refreshCommands(){
+// FETCH GUILDS
+async function fetchGuilds(){
   try{
-    const r=await fetch(`${BASE_URL}/api/commands/${currentGuild}`,{headers:authHeaders()});
-    if(!r.ok) throw new Error();
-    const c=await r.json();
-    cmdCount.textContent=c.length;
-    cmdList.innerHTML='';
-    c.forEach(cmd=>{
-      const d=document.createElement('div');
-      d.className='card';
-      d.innerHTML=`<strong>${cmd.trigger}</strong> (${cmd.lang})
-      <div style="float:right;">
-        <button onclick="editCommand('${cmd.id}')">Edit</button>
-        <button style="color:red;" onclick="deleteCommand('${cmd.id}')">Del</button>
+    const r=await fetch(`${BASE_URL}/api/mutual-servers`,{headers:{Authorization:`Bearer ${token}`}});
+    if(!r.ok) throw new Error('Failed to fetch servers');
+    const guilds=await r.json();
+    guildSelect.innerHTML='';
+    guilds.forEach(g=>guildSelect.innerHTML+=`<option value="${g.id}">${g.name}</option>`);
+    guildSelect.style.display='inline-block';
+    if(guilds.length>0){currentGuild=guilds[0].id;loadCommands();loadSettings();}
+  }catch(e){console.error(e);}
+}
+guildSelect.addEventListener('change',()=>{
+  currentGuild=guildSelect.value;
+  loadCommands();
+  loadSettings();
+  if(document.querySelector('.owner-only').style.display!=='none') loadStatus();
+});
+
+// COMMANDS
+async function loadCommands(){
+  try{
+    commandList.innerHTML="<em>Loading commands...</em>";
+    const r=await fetch(`${BASE_URL}/api/commands/${currentGuild}`,{headers:{Authorization:`Bearer ${token}`}});
+    if(!r.ok) throw new Error('Failed to load commands');
+    const cmds=await r.json();
+    commandList.innerHTML='';
+    cmds.forEach(cmd=>{
+      const div=document.createElement('div');
+      div.className='cmd-item';
+      div.innerHTML=`<span>${cmd.trigger}</span>
+      <div class="cmd-buttons">
+        <button onclick='editCommand(${JSON.stringify(cmd)})'><i class="fas fa-edit"></i> Edit</button>
+        <button class="danger" onclick='deleteCommand("${cmd.id}")'><i class="fas fa-trash"></i> Delete</button>
       </div>`;
-      cmdList.appendChild(d);
+      commandList.appendChild(div);
     });
-  }catch{ alert("Could not load commands"); }
+  }catch(e){console.error(e);commandList.innerHTML="<em>Failed to load commands</em>";if(e.message.includes('401')) logout();}
 }
 
+function newCommand(){editingCmd=null;editorCard.classList.remove('hidden');cTrig.value='';editor.setValue('',-1);consoleBox.style.display='none';consoleBox.textContent='';}
+function editCommand(cmd){editingCmd=cmd;editorCard.classList.remove('hidden');cTrig.value=cmd.trigger;editor.setValue(cmd.code,-1);cLang.value=cmd.lang;consoleBox.style.display='none';consoleBox.textContent='';}
+function cancelEdit(){editorCard.classList.add('hidden');editingCmd=null;}
+
+async function saveCommand(){
+  try{
+    consoleBox.style.display='block';
+    consoleBox.textContent='Saving command...\n';
+    const cmd={trigger:cTrig.value,code:editor.getValue(),lang:cLang.value};
+    if(editingCmd) cmd.id=editingCmd.id;
+    const r=await fetch(`${BASE_URL}/api/save-command`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+      body:JSON.stringify({guildId:currentGuild,command:cmd})
+    });
+    if(!r.ok) throw new Error('Failed to save command');
+    consoleBox.textContent+='Command saved!\n';
+    editingCmd=null;
+    editorCard.classList.add('hidden');
+    tab('commands');
+    loadCommands();
+  }catch(e){console.error(e);alert('Failed to save command');consoleBox.textContent+='Error: '+e.message+'\n';if(e.message.includes('401')) logout();}
+}
+
+async function deleteCommand(id){
+  if(!confirm('Delete this command?')) return;
+  try{
+    const r=await fetch(`${BASE_URL}/api/command/${currentGuild}/${id}`,{method:'DELETE',headers:{Authorization:`Bearer ${token}`}});
+    if(!r.ok) throw new Error('Failed to delete');
+    loadCommands();
+  }catch(e){console.error(e);alert('Failed to delete command');if(e.message.includes('401')) logout();}
+}
+
+// TEST COMMAND
+function testCommand(){
+  consoleBox.style.display='block';
+  consoleBox.textContent='Testing...\n';
+  const mode=consoleMode.value;
+  try{
+    if(cLang.value==='JavaScript'){
+      const log=m=>{if(mode==='output')consoleBox.textContent+=m+'\n';};
+      const reply=t=>{if(mode==='output')consoleBox.textContent+='Reply: '+t+'\n';};
+      new Function('console','message',editor.getValue())({log},{reply});
+      if(mode==='output') consoleBox.textContent+='Execution complete.\n';
+    }else if(cLang.value==='Python'){
+      if(mode==='error') consoleBox.textContent+='Python requires backend runtime\n';
+    }else if(cLang.value==='Golang'){
+      if(mode==='error') consoleBox.textContent+='Golang requires backend runtime\n';
+    }
+  }catch(e){if(mode==='error') consoleBox.textContent+='Error: '+e.message+'\n';}
+}
+
+// SETTINGS
 async function loadSettings(){
   try{
-    const r=await fetch(`${BASE_URL}/api/settings/${currentGuild}`,{headers:authHeaders()});
+    const r=await fetch(`${BASE_URL}/api/settings/${currentGuild}`,{headers:{Authorization:`Bearer ${token}`}});
+    if(!r.ok) throw new Error('Failed to load settings');
     const s=await r.json();
     if(s.prefix) gPrefix.value=s.prefix;
-  }catch{}
+  }catch(e){console.error(e);}
 }
 
 async function saveSettings(){
   try{
+    const btn=event.target;
+    btn.disabled=true;
+    btn.textContent='Saving...';
     const r=await fetch(`${BASE_URL}/api/settings/${currentGuild}`,{
       method:'POST',
-      headers:authHeaders({'Content-Type':'application/json'}),
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
       body:JSON.stringify({prefix:gPrefix.value})
     });
-    if(!r.ok) throw new Error();
-    alert("Settings saved!");
-  }catch{ alert("Failed to save settings"); }
+    if(!r.ok) throw new Error('Failed to save settings');
+    alert('Settings saved!');
+    btn.disabled=false;
+    btn.textContent='Save Settings';
+  }catch(e){console.error(e);alert('Failed to save settings');event.target.disabled=false;event.target.textContent='Save Settings';}
 }
 
+// STATUS (OWNER ONLY)
 async function loadStatus(){
   try{
-    const r=await fetch(`${BASE_URL}/api/status`,{headers:authHeaders()});
+    const r=await fetch(`${BASE_URL}/api/status`,{headers:{Authorization:`Bearer ${token}`}});
+    if(!r.ok) throw new Error('Failed to load status');
     const s=await r.json();
-    botStatus.innerHTML=`Bot: ${s.bot}<br>Redis: ${s.redis}`;
-  }catch{ botStatus.textContent="Status unavailable"; }
+    botStatus.innerHTML=`Bot: ${s.bot}<br>Redis: ${s.redis}<br>Errors: ${s.errors.join(', ')||'None'}`;
+  }catch(e){console.error(e);}
 }
 
-function openEditor(id=null){
-  listView.style.display='none';
-  editView.style.display='block';
-  if(!editor){
-    editor=ace.edit('code-editor');
-    editor.setTheme('ace/theme/monokai');
-    editor.session.setMode('ace/mode/javascript');
-  }
-  if(!id){ cTrig.value=''; editor.setValue(''); }
-  saveBtn.onclick=()=>save(!!id,id);
-}
+// INIT
+if(token) fetchUser();
 
-cLang.addEventListener('change',e=>{
-  if(!editor) return;
-  editor.session.setMode(e.target.value==='Python'?'ace/mode/python':'ace/mode/javascript');
+// ACE LANGUAGE SWITCH
+cLang.addEventListener('change',()=>{
+  const lang=cLang.value;
+  if(lang==='JavaScript') editor.session.setMode('ace/mode/javascript');
+  else if(lang==='Python') editor.session.setMode('ace/mode/python');
+  else if(lang==='Golang') editor.session.setMode('ace/mode/golang');
 });
-
-async function editCommand(id){
-  const r=await fetch(`${BASE_URL}/api/commands/${currentGuild}`,{headers:authHeaders()});
-  const c=await r.json();
-  const cmd=c.find(x=>x.id===id);
-  if(cmd){ openEditor(id); cTrig.value=cmd.trigger; cLang.value=cmd.lang; editor.setValue(cmd.code); }
-}
-
-async function deleteCommand(id){
-  if(confirm("Delete command?")){
-    await fetch(`${BASE_URL}/api/command/${currentGuild}/${id}`,{method:'DELETE',headers:authHeaders()});
-    refreshCommands();
-  }
-}
-
-function closeEditor(){ editView.style.display='none'; listView.style.display='block'; consoleBox.style.display='none'; }
-
-async function save(isEdit,id){
-  try{
-    const cmd={id:id||Date.now().toString(),trigger:cTrig.value,code:editor.getValue(),lang:cLang.value};
-    const r=await fetch(`${BASE_URL}/api/save-command`,{
-      method:'POST',
-      headers:authHeaders({'Content-Type':'application/json'}),
-      body:JSON.stringify({guildId:currentGuild,command:cmd})
-    });
-    if(!r.ok) throw new Error();
-    closeEditor(); refreshCommands();
-  }catch{ alert("Failed to save command"); }
-}
-
-function testCommand(){
-  consoleBox.style.display='block';
-  consoleBox.textContent='Testing...\n';
-  try{
-    if(cLang.value==='JavaScript'){
-      const log=m=>consoleBox.textContent+=m+'\n';
-      const reply=t=>consoleBox.textContent+='Reply: '+t+'\n';
-      const fakeConsole={log};
-      const fakeMessage={reply};
-      const fn=new Function('console','message','"use strict";\n'+editor.getValue());
-      fn(fakeConsole,fakeMessage);
-    }else consoleBox.textContent='Python requires server runtime.';
-  }catch(e){ consoleBox.textContent+='Error: '+e.message; }
-}
-
-function tab(v){
-  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
-  document.getElementById('v-'+v).classList.add('active');
-  document.querySelector(`[onclick="tab('${v}')"]`).classList.add('active');
-  if(window.innerWidth<=768) toggleMenu();
-}
-
-function login(){ window.location.href=`${BASE_URL}/callback`; }
-function logout(){ localStorage.removeItem('token'); location.reload(); }
-function toggleDropdown(){ dropdown.style.display=dropdown.style.display==='block'?'none':'block'; }
-function toggleMenu(){ sidebar.classList.toggle('closed'); }
-
-window.onload=init;
 </script>
 </body>
-            </html>
+        </html>
