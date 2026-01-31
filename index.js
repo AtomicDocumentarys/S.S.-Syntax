@@ -15,7 +15,7 @@ const { body, validationResult } = require('express-validator');
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const REDIRECT_URI = 'https://official-sssyntax-website-production.up.railway.app/callback';
+const REDIRECT_URI = process.env.REDIRECT_URI || 'https://official-sssyntax-website-production.up.railway.app/callback';
 const REDIS_URL = process.env.REDIS_URL;
 
 // Check environment variables
@@ -47,7 +47,7 @@ const errorLog = [];
 // Middleware
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(cors({ origin: '*', credentials: true }));
-app.use(express.static('.'));
+app.use(express.static('public'));
 
 // Request logging
 app.use((req, res, next) => {
@@ -57,7 +57,11 @@ app.use((req, res, next) => {
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', time: new Date().toISOString() });
+    res.json({ 
+        status: 'ok', 
+        time: new Date().toISOString(),
+        bot: client.isReady() ? 'ready' : 'not ready'
+    });
 });
 
 // OAuth Callback
@@ -473,24 +477,55 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// Discord Bot Events
-client.once('ready', () => {
+// Discord Bot Events - FIXED: Using clientReady instead of ready
+client.once('clientReady', () => {
     console.log('✅ Bot logged in as ' + client.user.tag);
     console.log('📊 Serving ' + client.guilds.cache.size + ' guilds');
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log('🌐 Dashboard running on port ' + PORT);
-    console.log('🔗 Bot starting...');
+// Also handle the 'ready' event for backward compatibility
+client.once('ready', () => {
+    console.log('✅ [Backward Compat] Bot logged in as ' + client.user.tag);
 });
 
-// Login bot
-client.login(TOKEN).catch(error => {
-    console.error('❌ Bot login failed:', error);
-    process.exit(1);
-});
+// Start both services
+async function startServices() {
+    try {
+        // Start Express server
+        const PORT = process.env.PORT || 3000;
+        const server = app.listen(PORT, () => {
+            console.log('🌐 Dashboard running on port ' + PORT);
+        });
+
+        // Start Discord bot
+        console.log('🤖 Bot starting...');
+        await client.login(TOKEN);
+        
+        // Keep process alive
+        process.on('SIGTERM', () => {
+            console.log('SIGTERM received, shutting down gracefully...');
+            client.destroy();
+            server.close(() => {
+                console.log('Server closed');
+                process.exit(0);
+            });
+        });
+        
+        process.on('SIGINT', () => {
+            console.log('SIGINT received, shutting down...');
+            client.destroy();
+            server.close(() => {
+                process.exit(0);
+            });
+        });
+        
+        console.log('✅ All services started successfully');
+        
+    } catch (error) {
+        console.error('❌ Failed to start services:', error);
+        process.exit(1);
+    }
+}
 
 // Error handling
 app.use((err, req, res, next) => {
@@ -504,4 +539,6 @@ app.use((req, res) => {
     res.status(404).json({ error: 'Route not found' });
 });
 
-console.log('✅ Server starting...');
+// Start everything
+console.log('🚀 Server starting...');
+startServices();
