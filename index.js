@@ -36,19 +36,17 @@ if (ALLOWED_ORIGINS.length === 0 && NODE_ENV === 'development') {
   ALLOWED_ORIGINS.push('http://localhost:3000');
 }
 
-// Bot configuration with multi-bot support
-const BOTS = {
-  main: {
-    token: TOKEN,
-    clientId: CLIENT_ID,
-    clientSecret: CLIENT_SECRET,
-    name: 'S.S. Syntax',
-    status: {
-      ready: false,
-      uptime: 0,
-      guilds: 0,
-      ping: 0
-    }
+// Bot configuration (optional - won't break if not provided)
+const BOT_CONFIG = {
+  token: TOKEN,
+  clientId: CLIENT_ID,
+  clientSecret: CLIENT_SECRET,
+  name: 'S.S. Syntax',
+  enabled: !!TOKEN, // Only enable bot if token is provided
+  status: {
+    ready: false,
+    enabled: !!TOKEN,
+    error: TOKEN ? null : 'No bot token provided'
   }
 };
 
@@ -56,9 +54,10 @@ const BOTS = {
 const commandCache = new Map();
 const sessionCache = new Map();
 const cooldowns = new Map();
-const botClients = new Map();
 const executionLogs = new Map();
 const guildCache = new Map();
+
+let botClient = null;
 
 // Cleanup intervals
 setInterval(() => {
@@ -82,27 +81,22 @@ console.log('🔍 Environment check:');
 console.log(`   NODE_ENV: ${NODE_ENV}`);
 console.log(`   PORT: ${PORT}`);
 console.log(`   CLIENT_ID: ${CLIENT_ID ? '✅ Set' : '❌ Missing'}`);
-console.log(`   TOKEN: ${TOKEN ? '✅ Set' : '❌ Missing'}`);
+console.log(`   TOKEN: ${TOKEN ? '✅ Set (Bot enabled)' : '⚠️ Missing (Bot disabled)'}`);
 console.log(`   REDIS_URL: ${REDIS_URL ? '✅ Set' : '❌ Missing'}`);
-
-const requiredEnvVars = ['TOKEN', 'CLIENT_ID', 'REDIS_URL'];
-const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-if (missingVars.length > 0) {
-  console.error('❌ Missing required environment variables:', missingVars);
-  console.log('⚠️  Server will start but some features may not work');
-}
 
 // --- EXPRESS APP ---
 const app = express();
 
-// === RAILWAY CRITICAL FIX 1: Health check FIRST ===
+// === HEALTH CHECK FIRST ===
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'discord-bot-platform',
+    service: 'discord-bot-dashboard',
     environment: NODE_ENV,
-    version: '2.0.0'
+    version: '2.0.0',
+    bot_enabled: BOT_CONFIG.enabled,
+    bot_ready: botClient?.status?.ready || false
   });
 });
 
@@ -137,7 +131,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
 }));
 
-// === RAILWAY CRITICAL FIX 2: Redis TLS ===
+// === Redis TLS ===
 let redis;
 try {
   redis = new Redis(REDIS_URL, {
@@ -269,90 +263,92 @@ async function validateSession(sessionId, ipAddress) {
   return session;
 }
 
-// --- DISCORD BOT INITIALIZATION (NON-BLOCKING) ---
-async function initializeBots() {
-  for (const [botName, botConfig] of Object.entries(BOTS)) {
-    try {
-      const client = new Client({
-        intents: [
-          GatewayIntentBits.Guilds,
-          GatewayIntentBits.GuildMessages,
-          GatewayIntentBits.MessageContent,
-          GatewayIntentBits.GuildMembers
-        ],
-        partials: ['MESSAGE', 'CHANNEL']
-      });
+// --- DISCORD BOT INITIALIZATION (OPTIONAL) ---
+async function initializeBot() {
+  if (!BOT_CONFIG.enabled) {
+    console.log('⚠️ Bot token not provided - bot functionality disabled');
+    console.log('✅ Web dashboard will run independently');
+    return;
+  }
+  
+  try {
+    const client = new Client({
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers
+      ],
+      partials: ['MESSAGE', 'CHANNEL']
+    });
 
-      botClients.set(botName, {
-        client,
-        config: botConfig,
-        status: { ready: false, uptime: 0, guilds: 0, ping: 0, startedAt: Date.now() },
-        guilds: new Collection()
-      });
+    botClient = {
+      client,
+      config: BOT_CONFIG,
+      status: { ready: false, enabled: true, error: null, startedAt: Date.now() }
+    };
 
-      // Setup bot events
-      client.once('ready', () => {
-        console.log(`🤖 ${botConfig.name} logged in as ${client.user.tag}`);
-        const botData = botClients.get(botName);
-        botData.status.ready = true;
-        botData.status.guilds = client.guilds.cache.size;
-        botData.status.startedAt = Date.now();
-      });
+    // Setup bot events
+    client.once('ready', () => {
+      console.log(`🤖 ${BOT_CONFIG.name} logged in as ${client.user.tag}`);
+      botClient.status.ready = true;
+      botClient.status.guilds = client.guilds.cache.size;
+      botClient.status.startedAt = Date.now();
+      botClient.status.ping = client.ws.ping;
+    });
 
-      client.on('messageCreate', async (message) => {
-        if (message.author.bot || !message.guild) return;
-        
-        // Command handling logic here
-        const prefix = '!';
-        if (!message.content.startsWith(prefix)) return;
-        
-        const args = message.content.slice(prefix.length).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
-        
-        // Load and execute custom commands from Redis
-        const commands = await loadGuildCommands(message.guild.id, botName);
-        const command = commands.find(cmd => cmd.name === commandName);
-        
-        if (command) {
-          try {
-            const sandbox = createSandbox(message);
-            const startTime = Date.now();
-            await sandbox.run(command.code);
-            const executionTime = Date.now() - startTime;
-            
-            await logCommandExecution(
-              message.guild.id,
-              message.author.id,
-              command.id,
-              true,
-              null,
-              executionTime,
-              botName
-            );
-          } catch (error) {
-            console.error(`Command execution error: ${error.message}`);
-            await logCommandExecution(
-              message.guild.id,
-              message.author.id,
-              command.id,
-              false,
-              error,
-              null,
-              botName
-            );
-          }
+    client.on('messageCreate', async (message) => {
+      if (message.author.bot || !message.guild) return;
+      
+      // Command handling logic here
+      const prefix = '!';
+      if (!message.content.startsWith(prefix)) return;
+      
+      const args = message.content.slice(prefix.length).trim().split(/ +/);
+      const commandName = args.shift().toLowerCase();
+      
+      // Load and execute custom commands from Redis
+      const commands = await loadGuildCommands(message.guild.id);
+      const command = commands.find(cmd => cmd.name === commandName);
+      
+      if (command) {
+        try {
+          const sandbox = createSandbox(message);
+          const startTime = Date.now();
+          await sandbox.run(command.code);
+          const executionTime = Date.now() - startTime;
+          
+          await logCommandExecution(
+            message.guild.id,
+            message.author.id,
+            command.id,
+            true,
+            null,
+            executionTime
+          );
+        } catch (error) {
+          console.error(`Command execution error: ${error.message}`);
+          await logCommandExecution(
+            message.guild.id,
+            message.author.id,
+            command.id,
+            false,
+            error,
+            null
+          );
         }
-      });
+      }
+    });
 
-      await client.login(botConfig.token);
-      console.log(`✅ ${botConfig.name} login initiated`);
-    } catch (error) {
-      console.error(`❌ Failed to login ${botConfig.name}:`, error.message);
-    }
+    await client.login(BOT_CONFIG.token);
+    console.log(`✅ ${BOT_CONFIG.name} login initiated`);
+  } catch (error) {
+    console.error(`❌ Failed to login ${BOT_CONFIG.name}:`, error.message);
+    BOT_CONFIG.status.error = error.message;
   }
 }
 
-// --- SANDBOX ---
+// --- SANDBOX (Only used if bot is enabled) ---
 function createSandbox(message) {
   return new NodeVM({
     timeout: 2000,
@@ -393,9 +389,9 @@ function createSandbox(message) {
 }
 
 // --- COMMAND MANAGEMENT ---
-async function loadGuildCommands(guildId, botName = 'main') {
+async function loadGuildCommands(guildId) {
   try {
-    const cacheKey = `${botName}:${guildId}`;
+    const cacheKey = `commands:${guildId}`;
     if (guildCache.has(cacheKey)) {
       const cached = guildCache.get(cacheKey);
       if (Date.now() - cached.timestamp < 5 * 60 * 1000) {
@@ -403,7 +399,7 @@ async function loadGuildCommands(guildId, botName = 'main') {
       }
     }
     
-    const commands = await redis.hgetall(`commands:${botName}:${guildId}`);
+    const commands = await redis.hgetall(`commands:${guildId}`);
     const parsedCommands = Object.values(commands)
       .map(c => {
         try { return JSON.parse(c); } catch { return null; }
@@ -422,21 +418,20 @@ async function loadGuildCommands(guildId, botName = 'main') {
   }
 }
 
-async function logCommandExecution(guildId, userId, commandId, success, error = null, executionTime = null, botName = 'main') {
+async function logCommandExecution(guildId, userId, commandId, success, error = null, executionTime = null) {
   const logEntry = {
     id: uuidv4(),
     timestamp: new Date().toISOString(),
     guildId,
     userId,
     commandId,
-    bot: botName,
     success,
     error: error ? error.message : null,
     executionTime
   };
   
-  await redis.lpush(`logs:${botName}:${guildId}`, JSON.stringify(logEntry));
-  await redis.ltrim(`logs:${botName}:${guildId}`, 0, 9999);
+  await redis.lpush(`logs:${guildId}`, JSON.stringify(logEntry));
+  await redis.ltrim(`logs:${guildId}`, 0, 9999);
 }
 
 // --- AUTHENTICATION MIDDLEWARE ---
@@ -450,197 +445,213 @@ async function authenticateUser(req, res, next) {
     }
     
     const session = await validateSession(sessionId, req.ip);
+    
     if (!session) {
       return res.status(401).json({ error: 'Invalid or expired session' });
     }
     
     req.session = session;
-    req.user = session.userData;
     next();
   } catch (error) {
     console.error('Authentication error:', error);
-    res.status(500).json({ error: 'Authentication failed' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-// === CRITICAL ROUTES FOR YOUR index.html ===
+// --- ROUTES ---
 
-// OAuth Login
-app.get('/login', (req, res) => {
-  const state = crypto.randomBytes(16).toString('hex');
-  const scopes = ['identify', 'guilds'];
-  const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${scopes.join('%20')}&state=${state}`;
-  res.redirect(url);
+// Dashboard route
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-// OAuth Callback
-app.get('/callback', async (req, res) => {
+// API routes (protected with authentication)
+app.get('/api/guilds', authenticateUser, apiLimiter, async (req, res) => {
   try {
-    const { code, state } = req.query;
+    if (!BOT_CONFIG.enabled || !botClient || !botClient.status.ready) {
+      return res.json({ 
+        guilds: [],
+        bot_available: false,
+        message: BOT_CONFIG.enabled ? 'Bot is not ready yet' : 'Bot functionality is disabled'
+      });
+    }
     
-    // Exchange code for token
-    const tokenResponse = await axios.post('https://discord.com/api/oauth2/token',
+    const guilds = await botClient.client.guilds.fetch();
+    const guildData = await Promise.all(
+      guilds.map(async (guild) => {
+        const fullGuild = await guild.fetch();
+        return {
+          id: fullGuild.id,
+          name: fullGuild.name,
+          icon: fullGuild.iconURL(),
+          memberCount: fullGuild.memberCount,
+          owner: fullGuild.ownerId === botClient.client.user.id
+        };
+      })
+    );
+    
+    res.json({ guilds: guildData, bot_available: true });
+  } catch (error) {
+    console.error('Failed to fetch guilds:', error);
+    res.status(500).json({ error: 'Failed to fetch guilds' });
+  }
+});
+
+// Get bot status
+app.get('/api/status', authenticateUser, apiLimiter, (req, res) => {
+  if (!BOT_CONFIG.enabled) {
+    return res.json({
+      enabled: false,
+      ready: false,
+      name: BOT_CONFIG.name,
+      message: 'Bot functionality is disabled (no token provided)'
+    });
+  }
+  
+  if (!botClient) {
+    return res.json({
+      enabled: true,
+      ready: false,
+      name: BOT_CONFIG.name,
+      message: 'Bot is initializing...',
+      error: BOT_CONFIG.status.error
+    });
+  }
+  
+  res.json({
+    enabled: true,
+    ready: botClient.status.ready,
+    name: BOT_CONFIG.name,
+    uptime: botClient.status.ready ? Date.now() - botClient.status.startedAt : 0,
+    guilds: botClient.status.guilds || 0,
+    ping: botClient.status.ping || 0,
+    message: botClient.status.ready ? 'Bot is online' : 'Bot is connecting...'
+  });
+});
+
+// Get commands for a guild
+app.get('/api/commands/:guildId', authenticateUser, apiLimiter, async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const commands = await loadGuildCommands(guildId);
+    res.json({ 
+      commands,
+      bot_available: BOT_CONFIG.enabled && botClient?.status?.ready
+    });
+  } catch (error) {
+    console.error('Failed to fetch commands:', error);
+    res.status(500).json({ error: 'Failed to fetch commands' });
+  }
+});
+
+// Create or update a command
+app.post('/api/commands/:guildId', authenticateUser, apiLimiter, [
+  body('name').isString().trim().notEmpty(),
+  body('code').isString().trim().notEmpty(),
+  body('description').optional().isString().trim()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    
+    const { guildId } = req.params;
+    const { name, code, description } = req.body;
+    const commandId = uuidv4();
+    
+    const commandData = {
+      id: commandId,
+      name: name.toLowerCase(),
+      code,
+      description: description || '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    await redis.hset(`commands:${guildId}`, commandId, JSON.stringify(commandData));
+    
+    // Clear cache
+    guildCache.delete(`commands:${guildId}`);
+    
+    res.json({ 
+      success: true, 
+      command: commandData,
+      bot_available: BOT_CONFIG.enabled && botClient?.status?.ready
+    });
+  } catch (error) {
+    console.error('Failed to save command:', error);
+    res.status(500).json({ error: 'Failed to save command' });
+  }
+});
+
+// Delete a command
+app.delete('/api/commands/:guildId/:commandId', authenticateUser, apiLimiter, async (req, res) => {
+  try {
+    const { guildId, commandId } = req.params;
+    await redis.hdel(`commands:${guildId}`, commandId);
+    
+    // Clear cache
+    guildCache.delete(`commands:${guildId}`);
+    
+    res.json({ 
+      success: true,
+      bot_available: BOT_CONFIG.enabled && botClient?.status?.ready
+    });
+  } catch (error) {
+    console.error('Failed to delete command:', error);
+    res.status(500).json({ error: 'Failed to delete command' });
+  }
+});
+
+// Discord OAuth callback
+app.get('/callback', authLimiter, async (req, res) => {
+  try {
+    const { code } = req.query;
+    
+    if (!code) {
+      return res.status(400).send('No authorization code provided');
+    }
+    
+    // Exchange code for access token
+    const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', 
       new URLSearchParams({
         client_id: CLIENT_ID,
         client_secret: CLIENT_SECRET,
         grant_type: 'authorization_code',
         code,
         redirect_uri: REDIRECT_URI,
+        scope: 'identify guilds'
       }),
       {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
       }
     );
     
-    const { access_token, token_type } = tokenResponse.data;
+    const { access_token, refresh_token } = tokenResponse.data;
     
     // Get user info
     const userResponse = await axios.get('https://discord.com/api/users/@me', {
       headers: {
-        authorization: `${token_type} ${access_token}`,
-      },
+        Authorization: `Bearer ${access_token}`
+      }
     });
     
-    const user = userResponse.data;
-    
     // Create session
-    const sessionId = await createSession(access_token, user, req.ip);
+    const sessionId = await createSession(access_token, userResponse.data, req.ip);
     
-    // Set cookie and redirect
+    // Set session cookie
     res.cookie('sessionId', sessionId, {
       httpOnly: true,
       secure: NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000,
-      sameSite: 'lax'
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000
     });
     
+    // Redirect to dashboard
     res.redirect('/dashboard');
   } catch (error) {
     console.error('OAuth callback error:', error.response?.data || error.message);
-    res.status(500).send('Authentication failed. Please try again.');
-  }
-});
-
-// Dashboard
-app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// Get current user
-app.get('/api/me', authenticateUser, (req, res) => {
-  res.json(req.user);
-});
-
-// Get guilds
-app.get('/api/guilds', authenticateUser, async (req, res) => {
-  try {
-    const bot = botClients.get('main');
-    if (!bot || !bot.client.isReady()) {
-      return res.status(503).json({ error: 'Bot not ready' });
-    }
-    
-    const guilds = bot.client.guilds.cache.map(guild => ({
-      id: guild.id,
-      name: guild.name,
-      icon: guild.iconURL(),
-      memberCount: guild.memberCount,
-      owner: guild.ownerId === req.user.id,
-      permissions: guild.members.cache.get(req.user.id)?.permissions.bitfield || 0
-    }));
-    
-    res.json({ guilds });
-  } catch (error) {
-    console.error('Error fetching guilds:', error);
-    res.status(500).json({ error: 'Failed to fetch guilds' });
-  }
-});
-
-// Get commands for guild
-app.get('/api/commands/:guildId', authenticateUser, async (req, res) => {
-  try {
-    const { guildId } = req.params;
-    const commands = await loadGuildCommands(guildId);
-    res.json({ commands });
-  } catch (error) {
-    console.error('Error fetching commands:', error);
-    res.status(500).json({ error: 'Failed to fetch commands' });
-  }
-});
-
-// Create/update command
-app.post('/api/commands/:guildId', authenticateUser, async (req, res) => {
-  try {
-    const { guildId } = req.params;
-    const { name, code, description, permissions } = req.body;
-    
-    if (!name || !code) {
-      return res.status(400).json({ error: 'Name and code are required' });
-    }
-    
-    const commandId = uuidv4();
-    const commandData = {
-      id: commandId,
-      name,
-      code,
-      description: description || '',
-      permissions: permissions || {
-        roles: [],
-        users: [],
-        requiredFlags: 0
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      createdBy: req.user.id
-    };
-    
-    await redis.hset(`commands:main:${guildId}`, commandId, JSON.stringify(commandData));
-    await clearCommandCache(guildId);
-    
-    res.json({ 
-      success: true, 
-      command: commandData,
-      message: 'Command saved successfully'
-    });
-  } catch (error) {
-    console.error('Error saving command:', error);
-    res.status(500).json({ error: 'Failed to save command' });
-  }
-});
-
-// Execute command from dashboard
-app.post('/api/execute/:guildId', authenticateUser, async (req, res) => {
-  try {
-    const { guildId } = req.params;
-    const { code } = req.body;
-    
-    const bot = botClients.get('main');
-    if (!bot || !bot.client.isReady()) {
-      return res.status(503).json({ error: 'Bot not ready' });
-    }
-    
-    const guild = bot.client.guilds.cache.get(guildId);
-    if (!guild) {
-      return res.status(404).json({ error: 'Guild not found' });
-    }
-    
-    // Find a text channel
-    const channel = guild.channels.cache.find(ch => 
-      ch.isTextBased() && ch.permissionsFor(bot.client.user).has('SendMessages')
-    );
-    
-    if (!channel) {
-      return res.status(400).json({ error: 'No suitable channel found' });
-    }
-    
-    // Create a mock message for sandbox
-    const mockMessage = {
-      author: { id: req.user.id, username: req.user.username, bot: false },
-      channel: {
-        id: channel.id,
-        name: channel.name,
-        send: async (content) => {
-          if (typeof content !== 'string') content = String(content);
-          if (content.length > 2000) content = content.substring(0, 1997) + '...';
-          return channel.send(cont
+    res.status(500).send('A
