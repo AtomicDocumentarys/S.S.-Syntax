@@ -1,9 +1,9 @@
 {
-  "name": "ss-syntax-dashboard",
+  "name": "dashboard",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node serve ."
   },
   "dependencies": {
     "express": "^4.18.2"
