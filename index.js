@@ -41,18 +41,7 @@ app.get('/health', (req, res) => {
 });
 
 // Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      fontSrc: ["'self'"],
-      imgSrc: ["'self'", "data:"]
-    }
-  },
-  hsts: false
-}));
+app.use(helmet());
 
 // CORS with origin validation
 app.use(cors({
@@ -158,12 +147,6 @@ function verifySessionId(sessionId) {
   
   // Check if signature matches
   if (signature !== hmac.digest('hex').substring(0, 16)) {
-    return false;
-  }
-  
-  // Optional: Check if timestamp is too old (more than 24 hours)
-  const sessionTime = parseInt(timestamp, 36);
-  if (Date.now() - sessionTime > 24 * 60 * 60 * 1000) {
     return false;
   }
   
@@ -374,7 +357,7 @@ app.delete('/api/commands/:guildId/:commandId', authenticateUser, apiLimiter, as
   }
 });
 
-// Discord OAuth callback
+// Discord OAuth callback - FIXED THE INCOMPLETE STRING HERE
 app.get('/callback', authLimiter, async (req, res) => {
   try {
     const { code } = req.query;
