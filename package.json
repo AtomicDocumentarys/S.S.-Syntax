@@ -1,14 +1,20 @@
 {
-  "name": "discord-bot-dashboard",
-  "version": "1.0.0",
-  "description": "Secure Discord bot dashboard",
+  "name": "ss-syntax-bot-dashboard",
+  "version": "2.0.1",
+  "description": "Secure Discord Bot Dashboard with Redis Connection Fix",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "audit": "npm audit --production",
-    "security-check": "npm audit --audit-level=high"
+    "test": "echo \"No tests specified\" && exit 0",
+    "security-check": "npm audit --audit-level=high",
+    "dependency-check": "npx npm-check-updates",
+    "format": "prettier --write \"**/*.{js,json,md}\"",
+    "lint": "eslint . --ext .js"
   },
+  "keywords": ["discord", "bot", "dashboard", "security", "redis"],
+  "author": "Your Name",
+  "license": "MIT",
   "dependencies": {
     "axios": "^1.6.2",
     "body-parser": "^1.20.2",
@@ -25,9 +31,16 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.0.1",
+    "eslint": "^8.54.0",
+    "prettier": "^3.1.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/ss-syntax-bot.git"
   }
 }
