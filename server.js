@@ -1,22 +1,16 @@
-const express = require('express');
-const app = express();
+// Ultra simple server - NO dependencies needed!
+const http = require('http');
+
+const server = http.createServer((req, res) => {
+  // Always return 200 OK for health checks
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('OK');
+  
+  console.log(`${new Date().toISOString()} - Request to: ${req.url}`);
+});
+
 const PORT = process.env.PORT || 3000;
-
-// Middleware
-app.use(express.static('.'));
-
-// Health check endpoint (Railway requires this!)
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date() });
-});
-
-// Main route
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
-});
-
-// Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
-  console.log(`🌐 Open: http://localhost:${PORT}`);
+  console.log(`🕐 Started at: ${new Date().toISOString()}`);
 });
