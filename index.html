@@ -1,225 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
+    <title>Dashboard - Online</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.S. Syntax Dashboard</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * {
+        body {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            font-family: Arial, sans-serif;
         }
-
-        .dashboard {
+        .card {
             background: white;
-            border-radius: 20px;
             padding: 40px;
-            width: 100%;
-            max-width: 800px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            border-radius: 20px;
             text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
         }
-
-        .logo {
-            font-size: 4rem;
-            color: #667eea;
+        .icon {
+            font-size: 60px;
+            color: #4CAF50;
             margin-bottom: 20px;
         }
-
         h1 {
             color: #333;
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+            margin: 0 0 10px 0;
         }
-
-        .subtitle {
+        p {
             color: #666;
-            font-size: 1.2rem;
-            margin-bottom: 40px;
+            margin: 0 0 30px 0;
         }
-
-        .status-card {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 30px;
-            border-left: 5px solid #4CAF50;
-        }
-
-        .status-badge {
-            display: inline-block;
+        .status {
             background: #4CAF50;
             color: white;
-            padding: 8px 20px;
+            padding: 10px 20px;
             border-radius: 50px;
-            font-weight: 600;
-            font-size: 1rem;
-            margin-bottom: 15px;
-        }
-
-        .status-text {
-            color: #333;
-            font-size: 1.1rem;
-            margin-bottom: 20px;
-        }
-
-        .buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 30px;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-        }
-
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-        }
-
-        .btn-success {
-            background: #28a745;
-        }
-
-        .info-box {
-            background: #e8f4fd;
-            border-radius: 15px;
-            padding: 20px;
-            margin-top: 30px;
-            text-align: left;
-            border-left: 5px solid #2196F3;
-        }
-
-        .info-title {
-            color: #2196F3;
-            font-weight: 600;
-            margin-bottom: 10px;
-            font-size: 1.1rem;
-        }
-
-        .info-text {
-            color: #555;
-            line-height: 1.6;
-        }
-
-        @media (max-width: 768px) {
-            .dashboard {
-                padding: 25px;
-            }
-            
-            h1 {
-                font-size: 2rem;
-            }
-            
-            .buttons {
-                flex-direction: column;
-            }
-            
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
+            display: inline-block;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <div class="dashboard">
-        <div class="logo">
-            <i class="fas fa-robot"></i>
-        </div>
-        
+    <div class="card">
+        <div class="icon">✓</div>
         <h1>S.S. Syntax Dashboard</h1>
-        <p class="subtitle">Welcome to your Discord bot management panel</p>
-        
-        <div class="status-card">
-            <div class="status-badge">
-                <i class="fas fa-circle"></i> ONLINE
-            </div>
-            <p class="status-text">Your dashboard is running successfully!</p>
-            <p><i class="fas fa-server"></i> Server: Active</p>
-            <p><i class="fas fa-bolt"></i> Status: Ready</p>
-            <p><i class="fas fa-clock"></i> Uptime: Always available</p>
-        </div>
-        
-        <div class="buttons">
-            <button class="btn" onclick="refreshStatus()">
-                <i class="fas fa-sync-alt"></i> Refresh Status
-            </button>
-            
-            <button class="btn btn-success" onclick="showAlert('Feature coming soon!', 'success')">
-                <i class="fas fa-cogs"></i> Manage Commands
-            </button>
-            
-            <a href="/health" target="_blank" class="btn btn-secondary">
-                <i class="fas fa-heartbeat"></i> Health Check
-            </a>
-        </div>
-        
-        <div class="info-box">
-            <div class="info-title">
-                <i class="fas fa-info-circle"></i> Quick Info
-            </div>
-            <p class="info-text">
-                • Dashboard is running on Railway<br>
-                • All systems are operational<br>
-                • Ready for bot integration<br>
-                • API endpoints are available
-            </p>
-        </div>
+        <p>Your dashboard is running successfully on Railway</p>
+        <div class="status">ONLINE</div>
     </div>
-
-    <script>
-        function refreshStatus() {
-            const badge = document.querySelector('.status-badge');
-            const text = document.querySelector('.status-text');
-            
-            badge.innerHTML = '<i class="fas fa-circle"></i> REFRESHING...';
-            text.textContent = 'Checking status...';
-            
-            setTimeout(() => {
-                badge.innerHTML = '<i class="fas fa-circle"></i> ONLINE';
-                text.textContent = 'Your dashboard is running successfully!';
-                showAlert('Status refreshed!', 'success');
-            }, 1000);
-        }
-        
-        function showAlert(message, type) {
-            alert(message);
-        }
-        
-        // Auto-refresh status every 60 seconds
-        setInterval(refreshStatus, 60000);
-    </script>
 </body>
 </html>
