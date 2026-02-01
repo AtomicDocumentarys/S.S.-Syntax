@@ -125,6 +125,15 @@ async function verifyGuildAccess(req, res, next) {
 
 // --- ROUTES ---
 
+// Config endpoint (safe to expose client ID for OAuth)
+app.get('/api/config', (req, res) => {
+  res.json({
+    clientId: CLIENT_ID,
+    redirectUri: REDIRECT_URI,
+    botInvite: `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&scope=bot%20applications.commands`
+  });
+});
+
 // Health check
 app.get('/health', async (req, res) => {
   try {
@@ -503,4 +512,4 @@ async function start() {
 }
 
 start();
-    
+  
