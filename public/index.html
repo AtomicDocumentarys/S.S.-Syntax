@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Secure S.S. Syntax Bot Dashboard">
+    <title>S.S. Syntax Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Remove the inline style and link to external CSS for security -->
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <!-- Security Notice Modal -->
+    <div id="securityModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-shield-alt"></i> Security Configuration Required</h2>
+                <span class="modal-close" onclick="closeSecurityModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="security-alert">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>Missing Security Configuration</h3>
+                    <p>Your dashboard is missing critical security settings. Please configure the following:</p>
+                    
+                    <div class="config-list">
+                        <div class="config-item">
+                            <h4><i class="fas fa-key"></i> ENCRYPTION_KEY</h4>
+                            <p>Generate with: <code>node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</code></p>
+                            <p>Set as environment variable in Railway/Railway/etc.</p>
+                        </div>
+                        
+                        <div class="config-item">
+                            <h4><i class="fas fa-globe"></i> ALLOWED_ORIGINS</h4>
+                            <p>Set to: <code>https://your-website-domain.com</code></p>
+                            <p>Add multiple domains separated by commas if needed</p>
+                        </div>
+                        
+                        <div class="config-item">
+                            <h4><i class="fas fa-database"></i> REDIS_PASSWORD</h4>
+                            <p>Set a strong password for Redis in your Railway dashboard</p>
+                        </div>
+                    </div>
+                    
+                    <div class="port-info">
+                        <h4><i class="fas fa-network-wired"></i> About Port 80</h4>
+                        <p>Railway automatically handles ports. Your site is accessible at the provided URL.</p>
+                        <p><strong>DON'T manually change the port to 80.</strong> Railway uses $PORT environment variable.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeSecurityModal()">I Understand</button>
+                <button class="btn btn-secondary" onclick="window.open('https://railway.app', '_blank')">Go to Railway Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <i class="fas fa-shield-alt"></i>
+                    <span>S.S. SYNTAX</span>
+                    <span class="security-badge" id="securityStatus">🔓</span>
+                </h2>
+                <p class="sidebar-subtitle">Secure Bot Dashboard</p>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-item active" onclick="switchTab('home')">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </div>
+                
+                <div class="nav-item s-only hidden" onclick="switchTab('commands')">
+                    <i class="fas fa-code"></i>
+                    <span>Commands</span>
+                </div>
+                
+                <div class="nav-item s-only hidden" onclick="switchTab('settings')">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </div>
+                
+                <div class="nav-item s-only hidden" onclick="switchTab('security')">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Security</span>
+                </div>
+                
+                <div class="nav-item" onclick="switchTab('status')">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Status</span>
+                </div>
+                
+                <div class="nav-item" onclick="openDocumentation()">
+                    <i class="fas fa-book"></i>
+                    <span>Documentation</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="security-notice">
+                    <i class="fas fa-lock"></i>
+                    <span>Secure Connection</span>
+                    <span id="connectionStatus" class="status-indicator"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div id="main-content" class="main-content">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="left-section">
+                    <button id="menu-trigger" class="btn btn-icon" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    
+                    <div class="guild-selector">
+                        <select id="guildSelect" class="input-black s-only hidden" onchange="selectGuild()">
+                            <option value="">Select a server...</option>
+                        </select>
+                        <div id="guildInfo" class="guild-info hidden"></div>
+                    </div>
+                </div>
+                
+                <div class="right-section">
+                    <div class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                        <div class="toggle-handle"></div>
+                        <i class="fas fa-sun"></i>
+                        <i class="fas fa-moon"></i>
+                    </div>
+                    
+                    <div id="authSection" class="auth-section">
+                        <button class="btn btn-primary" onclick="login()" id="loginBtn">
+                            <i class="fab fa-discord"></i>
+                            <span>Secure Login</span>
+                        </button>
+                    </div>
+                    
+                    <div id="userSection" class="user-menu hidden" onclick="toggleDropdown(event)">
+                        <div class="user-info">
+                            <span id="userName" class="user-name">Loading...</span>
+                            <span id="userDiscriminator" class="user-discriminator"></span>
+                        </div>
+                        <img id="userPfp" class="user-pfp" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar">
+                        <div id="dropdown" class="dropdown-content">
+                            <div onclick="viewProfile()">
+                                <i class="fas fa-user"></i>
+                                <span>Profile</span>
+                            </div>
+                            <div onclick="openSecuritySettings()">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>Security</span>
+                            </div>
+                            <div class="divider"></div>
+                            <div onclick="logout()" class="logout-btn">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Logout</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Views -->
+            <main>
+                <!-- Home/Dashboard View -->
+                <div id="v-home" class="view active">
+                    <div class="welcome-card card">
+                        <div class="welcome-header">
+                            <h1><i class="fas fa-rocket"></i> Welcome to S.S. Syntax</h1>
+                            <p class="subtitle">Advanced Discord bot with enterprise-grade security</p>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <i class="fas fa-shield-alt"></i>
+                                <div class="stat-content">
+                                    <h3>Security Level</h3>
+                                    <p class="stat-value" id="securityLevel">High</p>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <i class="fas fa-bolt"></i>
+                                <div class="stat-content">
+                                    <h3>Uptime</h3>
+                                    <p class="stat-value" id="uptimeStatus">Checking...</p>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <i class="fas fa-server"></i>
+                                <div class="stat-content">
+                                    <h3>Servers</h3>
+                                    <p class="stat-value" id="serverCount">Loading...</p>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <i class="fas fa-code"></i>
+                                <div class="stat-content">
+                                    <h3>Commands</h3>
+                                    <p class="stat-value" id="commandCount">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="quick-actions">
+                            <button class="btn btn-primary" onclick="login()" id="quickLoginBtn">
+                                <i class="fab fa-discord"></i>
+                                <span>Get Started</span>
+                            </button>
+                            
+                            <button class="btn btn-success" onclick="addToServer()">
+                                <i class="fas fa-plus"></i>
+                                <span>Add to Server</span>
+                            </button>
+                            
+                            <button class="btn btn-secondary" onclick="switchTab('security')">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>Security Check</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <i class="fas fa-code"></i>
+                            <h3>Multi-Language</h3>
+                            <p>JavaScript, Python, and Go support with secure execution</p>
+                        </div>
+                        
+                        <div class="feature-card">
+                            <i class="fas fa-shield-alt"></i>
+                            <h3>Enterprise Security</h3>
+                            <p>CSRF protection, rate limiting, encryption, and audit logging</p>
+                        </div>
+                        
+                        <div class="feature-card">
+                            <i class="fas fa-database"></i>
+                            <h3>Secure Database</h3>
+                            <p>Redis with encryption and access controls</p>
+                        </div>
+                        
+                        <div class="feature-card">
+                            <i class="fas fa-chart-line"></i>
+                            <h3>Real-time Monitoring</h3>
+                            <p>Live status and performance metrics</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Commands View -->
+                <div id="v-commands" class="view">
+                    <div class="card">
+                        <div class="view-header">
+                            <h2><i class="fas fa-code"></i> Command Management</h2>
+                            <button class="btn btn-primary" onclick="openNewCommandModal()">
+                                <i class="fas fa-plus"></i>
+                                <span>New Command</span>
+                            </button>
+                        </div>
+                        
+                        <div class="command-filters">
+                            <input type="text" id="commandSearch" class="input-black" placeholder="Search commands..." oninput="filterCommands()">
+                            <select id="commandFilter" class="input-black" onchange="filterCommands()">
+                                <option value="all">All Types</option>
+                                <option value="prefix">Prefix Commands</option>
+                                <option value="exact">Exact Match</option>
+                                <option value="starts">Starts With</option>
+                            </select>
+                        </div>
+                        
+                        <div class="command-list" id="commandList">
+                            <div class="empty-state">
+                                <i class="fas fa-code"></i>
+                                <h3>No Commands Found</h3>
+                                <p>Create your first command or select a server</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings View -->
+                <div id="v-settings" class="view">
+                    <div class="card">
+                        <h2><i class="fas fa-cog"></i> Server Settings</h2>
+                        <div class="settings-section">
+                            <h3><i class="fas fa-terminal"></i> Bot Prefix</h3>
+                            <div class="setting-row">
+                                <input type="text" id="prefixInput" class="input-black" maxlength="5" placeholder="!">
+                                <button class="btn btn-primary" onclick="updatePrefix()">Update Prefix</button>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h3><i class="fas fa-user-shield"></i> Permissions</h3>
+                            <div class="permission-grid">
+                                <div class="permission-item">
+                                    <input type="checkbox" id="permManage" checked disabled>
+                                    <label for="permManage">Manage Server</label>
+                                </div>
+                                <div class="permission-item">
+                                    <input type="checkbox" id="permAdmin" disabled>
+                                    <label for="permAdmin">Administrator</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security View -->
+                <div id="v-security" class="view">
+                    <div class="card">
+                        <div class="security-header">
+                            <h2><i class="fas fa-shield-alt"></i> Security Dashboard</h2>
+                            <button class="btn btn-secondary" onclick="runSecurityScan()">
+                                <i class="fas fa-search"></i>
+                                <span>Run Security Scan</span>
+                            </button>
+                        </div>
+                        
+                        <div class="security-status">
+                            <div class="security-item" id="csrfStatus">
+                                <i class="fas fa-check-circle"></i>
+                                <span>CSRF Protection</span>
+                                <span class="status-badge status-good">Active</span>
+                            </div>
+                            
+                            <div class="security-item" id="rateLimitStatus">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Rate Limiting</span>
+                                <span class="status-badge status-good">Active</span>
+                            </div>
+                            
+                            <div class="security-item" id="encryptionStatus">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>Encryption</span>
+                                <span class="status-badge status-warning">Check Config</span>
+                            </div>
+                            
+                            <div class="security-item" id="auditStatus">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Audit Logging</span>
+                                <span class="status-badge status-good">Active</span>
+                            </div>
+                        </div>
+                        
+                        <div class="audit-log">
+                            <h3><i class="fas fa-clipboard-list"></i> Recent Audit Logs</h3>
+                            <div class="log-list" id="auditLogList">
+                                <div class="log-entry">
+                                    <span class="log-time">Loading...</span>
+                                    <span class="log-action">Fetching logs...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status View -->
+                <div id="v-status" class="view">
+                    <div class="status-grid">
+                        <div class="status-card card">
+                            <h3><i class="fas fa-robot"></i> Bot Status</h3>
+                            <div class="status-content">
+                                <div class="status-item">
+                                    <span>Status:</span>
+                                    <span id="botStatus" class="status-indicator">Checking...</span>
+                                </div>
+                                <div class="status-item">
+                                    <span>Uptime:</span>
+                                    <span id="botUptime">--</span>
+                                </div>
+                                <div class="status-item">
+                                    <span>Ping:</span>
+                                    <span id="botPing">-- ms</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="status-card card">
+                            <h3><i class="fas fa-database"></i> Redis Status</h3>
+                            <div class="status-content">
+                                <div class="status-item">
+                                    <span>Connection:</span>
+                                    <span id="redisStatus" class="status-indicator">
